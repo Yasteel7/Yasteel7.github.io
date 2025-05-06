@@ -2,192 +2,194 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Text-Based RPG</title>
   <style>
     body {
       background-color: #121212;
-      color: #eee;
-      font-family: monospace;
+      color: #f0f0f0;
+      font-family: 'Courier New', Courier, monospace;
       padding: 20px;
     }
     button {
-      background-color: #333;
-      color: #eee;
-      border: none;
-      padding: 10px;
       margin: 5px;
+      padding: 10px;
+      background-color: #333;
+      color: white;
+      border: none;
       cursor: pointer;
-      border-radius: 5px;
     }
     button:hover {
       background-color: #555;
     }
-    #game-output {
-      margin-bottom: 10px;
+    #log {
       white-space: pre-wrap;
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-
-  <h1>🗡️ Text RPG</h1>
-  <div id="game-output"></div>
-  <div id="game-choices"></div>
+  <h1>Text RPG Adventure</h1>
+  <div id="stats"></div>
+  <div id="menu">
+    <button onclick="goTown()">🏠 Town</button>
+    <button onclick="fight()">⚔️ Fight</button>
+    <button onclick="openShop()">🛒 Shop</button>
+    <button onclick="viewQuests()">📜 Quests</button>
+    <button onclick="openInventory()">🎒 Inventory</button>
+  </div>
+  <div id="log"></div>
 
   <script>
-    class Game {
-      constructor() {
-        this.player = {
-          health: 100,
-          maxHealth: 100,
-          gold: 50,
-          inventory: [],
-          attack: 10,
-        };
+    const player = {
+      name: "Hero",
+      maxHp: 100,
+      hp: 100,
+      baseAttack: 10,
+      attack: 10,
+      gold: 50,
+      inventory: [
+        { name: "Health Potion", type: "consumable", effect: 30 },
+        { name: "Wooden Sword", type: "weapon", attack: 5 },
+        { name: "Leather Armor", type: "armor", hp: 10 }
+      ],
+      equipped: {
+        weapon: null,
+        armor: null
+      }
+    };
 
-        this.monsters = {
-          goblin: { name: "Goblin", health: 30, attack: 5 }
-        };
+    function updateStats() {
+      document.getElementById("stats").innerText =
+        `${player.name} - HP: ${player.hp}/${player.maxHp} - ATK: ${player.attack} - Gold: ${player.gold}`;
+    }
 
-        this.shopItems = [
-          { name: "Health Potion", price: 10 },
-          { name: "Sword", price: 25 }
-        ];
+    function log(message) {
+      document.getElementById("log").innerText = message;
+    }
 
-        this.quests = {
-          goblinHunt: {
-            name: "Goblin Hunt",
-            description: "Defeat 3 Goblins",
-            progress: 0,
-            target: 3,
-            completed: false
-          }
-        };
+    function goTown() {
+      log("You are in the town.");
+      updateStats();
+    }
 
-        this.currentMonster = null;
-        this.output = document.getElementById("game-output");
-        this.choices = document.getElementById("game-choices");
+    function fight() {
+      const monster = { name: "Goblin", hp: 30, attack: 8 };
+      log(`You encountered a ${monster.name}!\nClick 'Fight' again to attack.`);
+      
+      document.getElementById("menu").innerHTML = `
+        <button onclick="attack('${monster.name}', ${monster.hp}, ${monster.attack})">⚔️ Attack</button>
+        <button onclick="goTown()">🏃 Flee</button>
+      `;
+    }
+
+    function attack(name, hp, attackPower) {
+      const monster = { name, hp, attack: attackPower };
+
+      monster.hp -= player.attack;
+      player.hp -= monster.attack;
+
+      if (monster.hp <= 0) {
+        player.gold += 20;
+        log(`You defeated the ${monster.name}!\nGold earned: 20`);
+        document.getElementById("menu").innerHTML = `
+          <button onclick="goTown()">🏠 Return to Town</button>
+        `;
+      } else if (player.hp <= 0) {
+        log("You have been defeated...");
+        document.getElementById("menu").innerHTML = `
+          <button onclick="goTown()">🔁 Retry</button>
+        `;
+      } else {
+        log(`You hit the ${monster.name}!\nIt has ${monster.hp} HP left.\nThe ${monster.name} hits you!\nYou have ${player.hp} HP.`);
+        document.getElementById("menu").innerHTML = `
+          <button onclick="attack('${monster.name}', ${monster.hp}, ${monster.attack})">⚔️ Attack</button>
+          <button onclick="goTown()">🏃 Flee</button>
+        `;
       }
 
-      start() {
-        this.town();
-      }
+      updateStats();
+    }
 
-      showText(text) {
-        this.output.innerHTML = text;
-      }
+    function openShop() {
+      let shopLog = "Welcome to the shop:\n";
+      const shopItems = [
+        { name: "Iron Sword", type: "weapon", attack: 10, cost: 40 },
+        { name: "Iron Armor", type: "armor", hp: 20, cost: 50 },
+        { name: "Health Potion", type: "consumable", effect: 30, cost: 10 }
+      ];
 
-      showChoices(options) {
-        this.choices.innerHTML = "";
-        options.forEach(opt => {
-          const btn = document.createElement("button");
-          btn.textContent = opt.text;
-          btn.onclick = () => opt.action(opt.data);
-          this.choices.appendChild(btn);
-        });
-      }
+      shopItems.forEach((item, i) => {
+        shopLog += `${i + 1}. ${item.name} - ${item.cost} Gold\n`;
+      });
 
-      town() {
-        this.showText(`🏠 You are in town.\nHP: ${this.player.health}/${this.player.maxHealth} | Gold: ${this.player.gold}`);
-        this.showChoices([
-          { text: "Go to Forest", action: () => this.forest() },
-          { text: "View Quests", action: () => this.viewQuests() },
-          { text: "Go to Shop", action: () => this.shop() }
-        ]);
-      }
+      shopLog += "\nUse buyItem(index) in console to purchase.";
+      window.shopItems = shopItems;
+      log(shopLog);
+    }
 
-      forest() {
-        const goblin = { ...this.monsters.goblin }; // clone so we reset HP
-        this.currentMonster = goblin;
-        this.showText(`🌲 A wild ${goblin.name} appears! HP: ${goblin.health}`);
-        this.showChoices([
-          { text: "Attack", action: () => this.fight() },
-          { text: "Run", action: () => this.town() }
-        ]);
-      }
-
-      fight() {
-        const monster = this.currentMonster;
-        monster.health -= this.player.attack;
-
-        let log = `🗡️ You attack the ${monster.name}!\n`;
-
-        if (monster.health <= 0) {
-          log += `💀 You defeated the ${monster.name}!\n`;
-
-          // Quest progress
-          const quest = this.quests.goblinHunt;
-          if (!quest.completed) {
-            quest.progress++;
-            if (quest.progress >= quest.target) {
-              quest.completed = true;
-              log += `✅ Quest completed: ${quest.name}!\n`;
-            }
-          }
-
-          this.showText(log);
-          this.showChoices([{ text: "Back to Town", action: () => this.town() }]);
-        } else {
-          // Monster attacks back
-          this.player.health -= monster.attack;
-          log += `The ${monster.name} strikes back! You lose ${monster.attack} HP.\nYour HP: ${this.player.health}`;
-
-          if (this.player.health <= 0) {
-            this.showText("☠️ You have been defeated! Game Over.");
-            this.showChoices([]);
-          } else {
-            this.showText(log + `\n${monster.name}'s HP: ${monster.health}`);
-            this.showChoices([
-              { text: "Attack Again", action: () => this.fight() },
-              { text: "Run", action: () => this.town() }
-            ]);
-          }
-        }
-      }
-
-      viewQuests() {
-        const q = this.quests.goblinHunt;
-        const text = `📜 ${q.name}: ${q.description}\nProgress: ${q.progress}/${q.target}\nStatus: ${q.completed ? "✅ Completed" : "In Progress"}`;
-        this.showText(text);
-        this.showChoices([{ text: "Back to Town", action: () => this.town() }]);
-      }
-
-      shop() {
-        let text = "🛒 Welcome to the shop:\n";
-        this.shopItems.forEach((item, i) => {
-          text += `${i + 1}. ${item.name} - ${item.price} gold\n`;
-        });
-        this.showText(text);
-
-        const buttons = this.shopItems.map((item, i) => ({
-          text: `Buy ${item.name}`,
-          action: () => this.buy(item)
-        }));
-        buttons.push({ text: "Back to Town", action: () => this.town() });
-        this.showChoices(buttons);
-      }
-
-      buy(item) {
-        if (this.player.gold >= item.price) {
-          this.player.gold -= item.price;
-          this.player.inventory.push(item.name);
-          if (item.name === "Health Potion") {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + 30);
-          }
-          if (item.name === "Sword") {
-            this.player.attack += 5;
-          }
-          this.showText(`You bought a ${item.name}.\nHP: ${this.player.health} | Gold: ${this.player.gold}`);
-        } else {
-          this.showText("Not enough gold!");
-        }
-        this.showChoices([{ text: "Back to Shop", action: () => this.shop() }]);
+    function buyItem(index) {
+      const item = window.shopItems[index - 1];
+      if (player.gold >= item.cost) {
+        player.gold -= item.cost;
+        player.inventory.push(item);
+        log(`You bought ${item.name}.`);
+        updateStats();
+      } else {
+        log("Not enough gold.");
       }
     }
 
-    const game = new Game();
-    game.start();
+    function viewQuests() {
+      log("Quests coming soon!");
+    }
+
+    function openInventory() {
+      let invLog = "Inventory:\n";
+      player.inventory.forEach((item, i) => {
+        invLog += `${i + 1}. ${item.name} (${item.type})\n`;
+      });
+
+      invLog += "\nUse useItem(index) or equipItem(index) in the console.";
+      log(invLog);
+    }
+
+    function useItem(index) {
+      const item = player.inventory[index - 1];
+      if (item.type === "consumable") {
+        player.hp = Math.min(player.maxHp, player.hp + item.effect);
+        player.inventory.splice(index - 1, 1);
+        log(`Used ${item.name}. Healed for ${item.effect} HP.`);
+        updateStats();
+      } else {
+        log("This item is not usable.");
+      }
+    }
+
+    function equipItem(index) {
+      const item = player.inventory[index - 1];
+      if (item.type === "weapon") {
+        if (player.equipped.weapon) {
+          player.attack -= player.equipped.weapon.attack;
+        }
+        player.equipped.weapon = item;
+        player.attack = player.baseAttack + item.attack;
+        log(`Equipped ${item.name}.`);
+      } else if (item.type === "armor") {
+        if (player.equipped.armor) {
+          player.maxHp -= player.equipped.armor.hp;
+        }
+        player.equipped.armor = item;
+        player.maxHp += item.hp;
+        if (player.hp > player.maxHp) player.hp = player.maxHp;
+        log(`Equipped ${item.name}.`);
+      } else {
+        log("You can't equip that.");
+      }
+      updateStats();
+    }
+
+    // Initial load
+    goTown();
   </script>
 </body>
 </html>
