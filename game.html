@@ -197,7 +197,10 @@
       attackMonster() {
         if (!this.currentMonster) return;
 
-        this.currentMonster.health -= this.player.attack;
+        const damageTaken = this.currentMonster.attack;
+        this.player.health -= damageTaken;
+
+        this.showText(`You attack the ${this.currentMonster.name}!<br>${this.currentMonster.name} hits back and deals ${damageTaken} damage! Your HP: ${this.player.health}`);
 
         if (this.currentMonster.health <= 0) {
           this.player.exp += this.currentMonster.reward.exp;
@@ -211,8 +214,6 @@
           this.inCombat = false;  // Reset the combat flag
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          this.player.health -= this.currentMonster.attack;
-          this.showText(`The ${this.currentMonster.name} attacks back! You have ${this.player.health} HP left.`);
           this.showChoices([{ text: "Attack again", action: "attackMonster" }, { text: "Flee", action: "flee" }]);
         }
       }
