@@ -83,20 +83,12 @@
             target: 3,
             monster: "Goblin",
             reward: { exp: 50, gold: 50 }
-          },
-          vampireSlayer: {
-            name: "Vampire Slayer",
-            description: "Defeat 1 Vampire in the Swamp.",
-            completed: false,
-            progress: 0,
-            target: 1,
-            monster: "Vampire",
-            reward: { exp: 100, gold: 120 },
-            requires: ["goblinHunt"]
           }
         };
         this.activeQuests = [];
         this.currentLocation = "Town";
+        this.inCombat = false;
+        this.currentMonster = null;
       }
 
       // Show text in game output
@@ -117,40 +109,15 @@
         choiceButtons.forEach(button => choicesDiv.appendChild(button));
       }
 
-      // Save the game
-      saveGame() {
-        localStorage.setItem("rpgGameSave", JSON.stringify({
-          player: this.player,
-          quests: this.quests,
-          activeQuests: this.activeQuests,
-          currentLocation: this.currentLocation
-        }));
-        this.showText("Game saved!");
-      }
-
-      // Load the game
-      loadGame() {
-        const savedGame = JSON.parse(localStorage.getItem("rpgGameSave"));
-        if (savedGame) {
-          this.player = savedGame.player;
-          this.quests = savedGame.quests;
-          this.activeQuests = savedGame.activeQuests;
-          this.currentLocation = savedGame.currentLocation;
-          this.showText("Game loaded!");
-        } else {
-          this.showText("No saved game found.");
-        }
-      }
-
       // Show town menu
       town() {
+        if (this.inCombat) return; // Prevent going to town while in combat
+
         this.showText("Welcome to the Town! What would you like to do?");
         this.showChoices([
           { text: "Go to the Forest", action: "forest" },
-          { text: "Go to the Swamp", action: "swamp" },
           { text: "View Quests", action: "quests" },
-          { text: "Save Game", action: "saveGame" },
-          { text: "Load Game", action: "loadGame" }
+          { text: "Exit", action: "exitGame" }
         ]);
       }
 
@@ -161,24 +128,17 @@
             let status = "🕐 Available";
             if (q.completed) status = "✅ Completed";
             else if (this.activeQuests.includes(id)) status = `🟢 In Progress (${q.progress}/${q.target})`;
-            else if (q.requires && !q.requires.every(req => this.quests[req]?.completed)) {
-              status = "🔒 Locked";
-            }
             return `${q.name} — ${status}`;
           }).join("<br>");
         this.showText(`📜 Quest Log:<br>${questList}`);
 
         const questChoices = Object.entries(this.quests)
-          .filter(([id, q]) => {
-            const notStarted = !this.activeQuests.includes(id) && !q.completed;
-            const unlocked = !q.requires || q.requires.every(req => this.quests[req]?.completed);
-            return notStarted && unlocked;
-          })
+          .filter(([id, q]) => !this.activeQuests.includes(id) && !q.completed)
           .map(([id, q]) => ({ text: `Accept "${q.name}"`, action: "acceptQuest", questId: id }));
 
         this.showChoices([
           ...questChoices,
-          { text: "Back to town", next: "town" }
+          { text: "Back to town", action: "town" }
         ]);
       }
 
@@ -192,12 +152,11 @@
         } else {
           this.showText("You're already on that quest.");
         }
-        this.showChoices([{ text: "Back to Quests", next: "quests" }]);
+        this.showChoices([{ text: "Back to Quests", action: "quests" }]);
       }
 
       // Handle Forest location
       forest() {
-        this.currentLocation = "Forest";
         this.showText("You are in the Forest. What would you like to do?");
         this.showChoices([
           { text: "Fight a Goblin", action: "fightGoblin" },
@@ -205,48 +164,66 @@
         ]);
       }
 
-      // Handle Swamp location
-      swamp() {
-        this.currentLocation = "Swamp";
-        this.showText("You are in the Swamp. What would you like to do?");
+      // Handle fight with Goblin
+      fightGoblin() {
+        this.currentMonster = {
+          name: "Goblin",
+          health: 30,
+          attack: 8,
+          reward: { exp: 15, gold: 15 }
+        };
+        this.inCombat = true;
+        this.showText(`A wild Goblin appears! Fight or flee?`);
         this.showChoices([
-          { text: "Fight a Vampire", action: "fightVampire" },
-          { text: "Go back to Town", action: "town" }
+          { text: "Attack", action: "attackMonster" },
+          { text: "Flee", action: "flee" }
         ]);
       }
 
-      // Fight Goblin
-      fightGoblin() {
-        this.fightMonster({ name: "Goblin", health: 30, attack: 8, reward: { exp: 15, gold: 15 }, type: "Goblin" });
-      }
+      // Attack the monster
+      attackMonster() {
+        if (!this.currentMonster) {
+          this.showText("There's no monster to attack.");
+          return;
+        }
+        const playerAttack = Math.max(0, this.player.attack - this.currentMonster.attack);
+        this.currentMonster.health -= playerAttack;
+        this.player.health -= this.currentMonster.attack;
 
-      // Fight Vampire
-      fightVampire() {
-        this.fightMonster({ name: "Vampire", health: 100, attack: 20, reward: { exp: 50, gold: 60 }, type: "Vampire" });
-      }
-
-      // Handle fight logic
-      fightMonster(monster) {
-        const playerAttack = Math.max(0, this.player.attack - monster.attack);
-        let playerHealth = this.player.health - monster.attack;
-        let monsterHealth = monster.health - playerAttack;
-
-        if (monsterHealth <= 0) {
-          this.player.exp += monster.reward.exp;
-          this.player.gold += monster.reward.gold;
+        if (this.currentMonster.health <= 0) {
+          this.player.exp += this.currentMonster.reward.exp;
+          this.player.gold += this.currentMonster.reward.gold;
           this.quests.goblinHunt.progress++;
-          this.showText(`You defeated the ${monster.name}! You gained ${monster.reward.exp} EXP and ${monster.reward.gold} gold.`);
+          this.showText(`You defeated the ${this.currentMonster.name}! You gained ${this.currentMonster.reward.exp} EXP and ${this.currentMonster.reward.gold} gold.`);
           if (this.quests.goblinHunt.progress >= this.quests.goblinHunt.target) {
             this.quests.goblinHunt.completed = true;
             this.showText("You completed the Goblin Hunt quest!");
           }
-        } else if (playerHealth <= 0) {
+          this.inCombat = false;
+          this.showChoices([{ text: "Back to Town", action: "town" }]);
+        } else if (this.player.health <= 0) {
           this.showText("You have been defeated!");
+          this.inCombat = false;
+          this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          this.showText(`You fought the ${monster.name}! Your health: ${playerHealth} | ${monster.name} health: ${monsterHealth}`);
+          this.showText(`You attacked the ${this.currentMonster.name}! Your health: ${this.player.health} | ${this.currentMonster.name} health: ${this.currentMonster.health}`);
+          this.showChoices([
+            { text: "Attack again", action: "attackMonster" },
+            { text: "Flee", action: "flee" }
+          ]);
         }
+      }
 
-        this.showChoices([{ text: "Back to town", next: "town" }]);
+      // Flee from the fight
+      flee() {
+        this.showText("You fled from the fight.");
+        this.inCombat = false;
+        this.showChoices([{ text: "Back to Town", action: "town" }]);
+      }
+
+      // Exit the game
+      exitGame() {
+        this.showText("Thank you for playing! The game will now close.");
       }
     }
 
