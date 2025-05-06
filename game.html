@@ -127,7 +127,7 @@
       town() {
         if (this.inCombat) return; // Prevent going to town while in combat
 
-        this.showText("Welcome to the Town! What would you like to do?");
+        this.showText(`Welcome to the Town! HP: ${this.player.health}<br>What would you like to do?`);
         this.showChoices([
           { text: "Go to the Forest", action: "forest" },
           { text: "View Quests", action: "quests" },
@@ -201,7 +201,7 @@
 
       // Handle Forest location
       forest() {
-        this.showText("You are in the Forest. What would you like to do?");
+        this.showText(`You are in the Forest. HP: ${this.player.health}<br>What would you like to do?`);
         this.showChoices([
           { text: "Fight a Goblin", action: "fightGoblin" },
           { text: "Fight the Boss Dragon", action: "fightBoss" },
@@ -218,7 +218,7 @@
           reward: { exp: 15, gold: 15 }
         };
         this.inCombat = true;
-        this.showText(`A wild Goblin appears! Fight or flee?`);
+        this.showText(`A wild Goblin appears! Your HP: ${this.player.health}<br>Fight or flee?`);
         this.showChoices([
           { text: "Attack", action: "attackMonster" },
           { text: "Flee", action: "flee" }
@@ -234,7 +234,7 @@
           reward: { exp: 200, gold: 100 }
         };
         this.inCombat = true;
-        this.showText(`A wild Dragon appears! Fight or flee?`);
+        this.showText(`A wild Dragon appears! Your HP: ${this.player.health}<br>Fight or flee?`);
         this.showChoices([
           { text: "Attack", action: "attackBoss" },
           { text: "Flee", action: "flee" }
@@ -261,7 +261,7 @@
           this.inCombat = false;
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          this.showText(`You attacked the ${this.currentMonster.name}! ${this.currentMonster.name}'s health: ${this.currentMonster.health}`);
+          this.showText(`You attacked the ${this.currentMonster.name}! ${this.currentMonster.name}'s health: ${this.currentMonster.health}<br>Your HP: ${this.player.health}`);
           this.showChoices([
             { text: "Attack again", action: "attackMonster" },
             { text: "Flee", action: "flee" }
@@ -289,7 +289,7 @@
           this.inCombat = false;
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          this.showText(`You attacked the ${this.currentBoss.name}! ${this.currentBoss.name}'s health: ${this.currentBoss.health}`);
+          this.showText(`You attacked the ${this.currentBoss.name}! ${this.currentBoss.name}'s health: ${this.currentBoss.health}<br>Your HP: ${this.player.health}`);
           this.showChoices([
             { text: "Attack again", action: "attackBoss" },
             { text: "Flee", action: "flee" }
@@ -307,22 +307,19 @@
       // View inventory
       inventory() {
         let inventoryList = this.player.inventory.length ? this.player.inventory.join("<br>") : "Your inventory is empty.";
-        this.showText(`🔑 Your Inventory:<br>${inventoryList}`);
-        this.showChoices([
-          { text: "Back to Town", action: "town" }
-        ]);
+        this.showText(`🛍️ Inventory:<br>${inventoryList}`);
+        this.showChoices([{ text: "Back to Town", action: "town" }]);
       }
 
       // Exit the game
       exitGame() {
-        this.showText("Thank you for playing! The game will now close.");
+        this.showText("Thanks for playing!");
+        document.getElementById("game-choices").innerHTML = "";
       }
     }
 
-    // Initialize the game
     const game = new Game();
-    game.town(); // Start the game in the town
+    game.town();
   </script>
-
 </body>
 </html>
