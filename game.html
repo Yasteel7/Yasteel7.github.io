@@ -19,6 +19,9 @@
     #game-output {
       margin-bottom: 10px;
     }
+    #game-choices {
+      margin-top: 20px;
+    }
   </style>
 </head>
 <body>
@@ -33,9 +36,12 @@
         this.player = {
           name: "Hero",
           health: 100,
+          maxHealth: 100,
           attack: 15,
           gold: 50,
           inventory: [],
+          level: 1,
+          experience: 0
         };
 
         this.shop = [
@@ -49,9 +55,14 @@
             description: "Defeat 3 Goblins in the Forest.",
             completed: false,
             progress: 0,
-            target: 3,
+            target: 3
           }
         };
+
+        this.monsters = [
+          { name: "Goblin", health: 30, attack: 5 },
+          { name: "Wolf", health: 50, attack: 10 }
+        ];
       }
 
       showText(text) {
@@ -71,7 +82,7 @@
       }
 
       town() {
-        this.showText(`Welcome to Town! Your HP: ${this.player.health} | Gold: ${this.player.gold}`);
+        this.showText(`Welcome to Town! Your HP: ${this.player.health} | Gold: ${this.player.gold} | Level: ${this.player.level}`);
         this.showChoices([
           { text: "Go to the Forest", action: "forest" },
           { text: "View Quests", action: "quests" },
@@ -126,8 +137,8 @@
       }
 
       fightGoblin() {
-        const goblin = { name: "Goblin", health: 30, attack: 5 };
-        this.showText(`A Goblin appears! Fight or flee?`);
+        const goblin = this.monsters[0]; // Goblin
+        this.showText(`A ${goblin.name} appears! Fight or flee?`);
         this.showChoices([
           { text: "Attack", action: "attackMonster", monster: goblin },
           { text: "Flee", action: "town" }
@@ -148,7 +159,14 @@
           }
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          this.showChoices([{ text: "Attack again", action: "attackMonster", monster: monster }]);
+          this.showText(`${monster.name} attacks back!`);
+          this.player.health -= monster.attack;
+          if (this.player.health <= 0) {
+            this.showText("You have been defeated! Game Over.");
+            this.showChoices([{ text: "Exit Game", action: "exitGame" }]);
+          } else {
+            this.showChoices([{ text: "Attack again", action: "attackMonster", monster: monster }]);
+          }
         }
       }
 
