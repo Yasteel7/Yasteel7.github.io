@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Text Adventure Game</title>
+  <style>
+    body {
+      font-family: monospace;
+      background-color: #111;
+      color: #eee;
+      padding: 20px;
+    }
+    .choices button {
+      margin: 10px 5px;
+      padding: 10px 15px;
+      background: #444;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    .choices button:hover {
+      background: #666;
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🧭 The Forest Path</h1>
+  <div id="text"></div>
+  <div class="choices" id="choices"></div>
+
+  <script>
+    const story = {
+      start: {
+        text: "You wake up in a dark forest. A path lies ahead. You can go left or right.",
+        choices: [
+          { text: "Go left", next: "leftPath" },
+          { text: "Go right", next: "rightPath" }
+        ]
+      },
+      leftPath: {
+        text: "You walk left and encounter a wild wolf. It snarls at you.",
+        choices: [
+          { text: "Run", next: "runAway" },
+          { text: "Fight", next: "fightWolf" }
+        ]
+      },
+      rightPath: {
+        text: "You walk right and find a friendly old man with a map.",
+        choices: [
+          { text: "Talk to him", next: "talkOldMan" },
+          { text: "Ignore him", next: "ignoreOldMan" }
+        ]
+      },
+      runAway: {
+        text: "You run and trip on a root. The wolf catches up... Game over.",
+        choices: []
+      },
+      fightWolf: {
+        text: "You pick up a stick and scare the wolf away! You're safe... for now.",
+        choices: []
+      },
+      talkOldMan: {
+        text: "He gives you a map and points you to safety. You win!",
+        choices: []
+      },
+      ignoreOldMan: {
+        text: "You walk past and fall into a trap. Game over.",
+        choices: []
+      }
+    };
+
+    let currentNode = "start";
+
+    function showNode(nodeKey) {
+      const node = story[nodeKey];
+      currentNode = nodeKey;
+
+      document.getElementById("text").innerText = node.text;
+      const choicesDiv = document.getElementById("choices");
+      choicesDiv.innerHTML = "";
+
+      node.choices.forEach(choice => {
+        const btn = document.createElement("button");
+        btn.textContent = choice.text;
+        btn.onclick = () => showNode(choice.next);
+        choicesDiv.appendChild(btn);
+      });
+    }
+
+    showNode(currentNode);
+  </script>
+
+</body>
+</html>
