@@ -42,20 +42,27 @@
         exp: 0,
         inventory: [],
         skills: ["Basic Attack"], // Starting skill
+        defense: 0,  // Added defense stat
+        equipment: [],
       },
       locations: {
         town: {
-          description: "Welcome to the Town. You see a shop and a road leading to the forest.",
+          description: "Welcome to the Town. You see a shop, a road leading to the forest, and a place to check your stats.",
           choices: [
             { text: "Visit the shop", next: "shop" },
-            { text: "Go to the forest", next: "forest" }
+            { text: "Go to the forest", next: "forest" },
+            { text: "View Character Stats", next: "stats" },
+            { text: "Check Inventory", next: "inventory" },
           ]
         },
         shop: {
-          description: "You enter the shop. Items available: Healing Potion (10 gold), Sword (50 gold).",
+          description: "You enter the shop. Items available: Healing Potion (10 gold), Sword (50 gold), Armor (30 gold), Shield (25 gold), Magic Wand (100 gold).",
           choices: [
             { text: "Buy Healing Potion (10 gold)", action: "buyHealingPotion", next: "town" },
             { text: "Buy Sword (50 gold)", action: "buySword", next: "town" },
+            { text: "Buy Armor (30 gold)", action: "buyArmor", next: "town" },
+            { text: "Buy Shield (25 gold)", action: "buyShield", next: "town" },
+            { text: "Buy Magic Wand (100 gold)", action: "buyMagicWand", next: "town" },
             { text: "Leave the shop", next: "town" }
           ]
         },
@@ -63,14 +70,36 @@
           description: "You are in a dark forest. A wild monster appears!",
           choices: [
             { text: "Fight the monster", next: "fightMonster" },
-            { text: "Run away", next: "town" }
+            { text: "Run away", next: "town" },
+            { text: "Flee the battle", next: "fleeBattle" }
           ]
         },
+        stats: {
+          description: function() {
+            return `Character Stats:\nHealth: ${game.player.health}\nAttack: ${game.player.attack}\nGold: ${game.player.gold}\nLevel: ${game.player.level}\nEXP: ${game.player.exp}\nDefense: ${game.player.defense}`;
+          },
+          choices: [
+            { text: "Back to Town", next: "town" }
+          ]
+        },
+        inventory: {
+          description: function() {
+            if (game.player.inventory.length > 0) {
+              return `Inventory:\n${game.player.inventory.join('\n')}`;
+            } else {
+              return "Your inventory is empty.";
+            }
+          },
+          choices: [
+            { text: "Back to Town", next: "town" }
+          ]
+        }
       },
-      monster: {
-        health: 30,
-        attack: 10,
-      },
+      monsters: [
+        { name: "Goblin", health: 30, attack: 10, reward: { exp: 20, gold: 10 } },
+        { name: "Orc", health: 60, attack: 15, reward: { exp: 40, gold: 25 } },
+        { name: "Dragon", health: 100, attack: 30, reward: { exp: 100, gold: 50 } }
+      ],
       buyHealingPotion() {
         if (this.player.gold >= 10) {
           this.player.gold -= 10;
@@ -85,61 +114,103 @@
           this.player.gold -= 50;
           this.player.inventory.push("Sword");
           this.player.attack += 5; // Increase attack with the sword
+          this.player.equipment.push("Sword");
           this.showText("You bought a Sword. Your attack increased!");
         } else {
           this.showText("You don't have enough gold!");
         }
       },
+      buyArmor() {
+        if (this.player.gold >= 30) {
+          this.player.gold -= 30;
+          this.player.defense += 5; // Armor increases defense
+          this.player.equipment.push("Armor");
+          this.showText("You bought Armor. Your defense increased!");
+        } else {
+          this.showText("You don't have enough gold!");
+        }
+      },
+      buyShield() {
+        if (this.player.gold >= 25) {
+          this.player.gold -= 25;
+          this.player.defense += 3; // Shield increases defense
+          this.player.equipment.push("Shield");
+          this.showText("You bought a Shield. Your defense increased!");
+        } else {
+          this.showText("You don't have enough gold!");
+        }
+      },
+      buyMagicWand() {
+        if (this.player.gold >= 100) {
+          this.player.gold -= 100;
+          this.player.attack += 10; // Magic wand increases attack
+          this.player.equipment.push("Magic Wand");
+          this.showText("You bought a Magic Wand. Your attack increased!");
+        } else {
+          this.showText("You don't have enough gold!");
+        }
+      },
       fightMonster() {
-        const monsterHealth = this.monster.health;
-        let playerAttack = Math.floor(Math.random() * 20) + this.player.attack; // Regular attack
-        const basicAttack = this.player.skills.includes("Basic Attack") ? 15 : 0; // Basic attack damage
-        let monsterAttack = this.monster.attack;
+        const monster = this.getRandomMonster();
+        const playerAttack = Math.floor(Math.random() * 20) + this.player.attack;
+        let monsterAttack = monster.attack;
 
-        this.showText("Choose your action: 1. Basic Attack  2. Regular Attack");
+        this.showText(`A wild ${monster.name} appears!`);
 
-        // Show combat choices (buttons for the user to choose)
+        // Combat mechanics
         this.showChoices([
-          { text: "Use Basic Attack", action: "basicAttack", next: "combatOutcome" },
-          { text: "Use Regular Attack", action: "regularAttack", next: "combatOutcome" },
+          { text: "Fight", action: "combat", next: "combatOutcome" },
+          { text: "Flee", next: "fleeBattle" }
         ]);
       },
 
-      basicAttack() {
-        this.player.attackMonster(15); // Basic attack deals 15 damage
+      getRandomMonster() {
+        return this.monsters[Math.floor(Math.random() * this.monsters.length)];
       },
 
-      regularAttack() {
-        let damage = Math.floor(Math.random() * 20) + this.player.attack; // Random attack between range
-        this.player.attackMonster(damage);
-      },
+      combat() {
+        const monster = this.getRandomMonster();
+        let playerAttack = Math.floor(Math.random() * 20) + this.player.attack;
+        const monsterAttack = monster.attack;
 
-      attackMonster(damage) {
-        this.monster.health -= damage;
-        this.showText(`You dealt ${damage} damage to the monster!`);
+        // Apply damage
+        monster.health -= playerAttack;
+        this.showText(`You dealt ${playerAttack} damage to the ${monster.name}.`);
 
-        // Monster attacks back
-        this.monsterAttacks();
+        // Monster's turn to attack
+        this.monsterAttacks(monster);
 
-        // Check if the monster is defeated
-        if (this.monster.health <= 0) {
-          this.showText("You defeated the monster!");
-          this.player.exp += 20;
-          this.player.gold += 20;
+        // Check for monster defeat
+        if (monster.health <= 0) {
+          this.showText(`You defeated the ${monster.name}!`);
+          this.player.exp += monster.reward.exp;
+          this.player.gold += monster.reward.gold;
           this.checkLevelUp();
           this.showChoices([{ text: "Go back to town", next: "town" }]);
         }
 
-        // Check if the player is defeated
+        // Check for player defeat
         if (this.player.health <= 0) {
           this.showText("You have been defeated by the monster. Game over.");
         }
       },
 
-      monsterAttacks() {
-        let damage = this.monster.attack;
+      fleeBattle() {
+        const fleeSuccess = Math.random() > 0.5; // 50% chance of success
+
+        if (fleeSuccess) {
+          this.showText("You successfully fled the battle!");
+          this.showChoices([{ text: "Go back to town", next: "town" }]);
+        } else {
+          this.showText("You failed to flee. The battle continues!");
+          this.fightMonster();
+        }
+      },
+
+      monsterAttacks(monster) {
+        const damage = Math.max(0, monster.attack - this.player.defense);
         this.player.health -= damage;
-        this.showText(`The monster attacks you for ${damage} damage!`);
+        this.showText(`${monster.name} attacks you for ${damage} damage!`);
       },
 
       checkLevelUp() {
@@ -182,12 +253,17 @@
 
       showNode(nodeKey) {
         const node = this.locations[nodeKey];
-        this.showText(node.description);
+        if (typeof node.description === "function") {
+          this.showText(node.description());
+        } else {
+          this.showText(node.description);
+        }
         this.showChoices(node.choices);
       }
     };
 
     game.showNode("town"); // Start at the town
   </script>
+
 </body>
 </html>
