@@ -117,6 +117,7 @@
         this.showChoices([
           { text: "Go to the Forest", action: "forest" },
           { text: "View Quests", action: "quests" },
+          { text: "View Inventory", action: "inventory" },
           { text: "Exit", action: "exitGame" }
         ]);
       }
@@ -221,9 +222,39 @@
         this.showChoices([{ text: "Back to Town", action: "town" }]);
       }
 
+      // View inventory
+      inventory() {
+        let inventoryList = this.player.inventory.length ? this.player.inventory.join("<br>") : "Your inventory is empty.";
+        this.showText(`🔑 Your Inventory:<br>${inventoryList}`);
+        this.showChoices([
+          { text: "Back to Town", action: "town" }
+        ]);
+      }
+
       // Exit the game
       exitGame() {
         this.showText("Thank you for playing! The game will now close.");
+      }
+
+      // Save the game
+      saveGame() {
+        localStorage.setItem("gameData", JSON.stringify(this));
+        this.showText("Game saved successfully!");
+        this.showChoices([{ text: "Back to Town", action: "town" }]);
+      }
+
+      // Load the game
+      loadGame() {
+        const savedData = localStorage.getItem("gameData");
+        if (savedData) {
+          const parsedData = JSON.parse(savedData);
+          Object.assign(this, parsedData);
+          this.showText("Game loaded successfully!");
+          this.showChoices([{ text: "Back to Town", action: "town" }]);
+        } else {
+          this.showText("No saved game found.");
+          this.showChoices([{ text: "Start New Game", action: "town" }]);
+        }
       }
     }
 
