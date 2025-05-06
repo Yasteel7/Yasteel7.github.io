@@ -13,10 +13,6 @@
       padding: 0;
     }
 
-    h1, h2, p {
-      color: #f1f1f1;
-    }
-
     #game-output {
       margin: 20px auto;
       padding: 15px;
@@ -47,11 +43,6 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-    }
-
-    img {
-      max-width: 100px;
-      max-height: 100px;
     }
   </style>
 </head>
@@ -99,18 +90,15 @@
           { name: "Sword", price: 50, effect: "increase attack by 10" }
         ];
         this.activeQuests = [];
-        this.currentLocation = "Town";
         this.inCombat = false;
         this.currentMonster = null;
         this.currentBoss = null;
       }
 
-      // Show text in game output
       showText(text) {
         document.getElementById("game-output").innerHTML = text;
       }
 
-      // Show choices in the game
       showChoices(choices) {
         const choiceButtons = choices.map(choice => {
           const button = document.createElement("button");
@@ -123,7 +111,6 @@
         choiceButtons.forEach(button => choicesDiv.appendChild(button));
       }
 
-      // Show town menu
       town() {
         if (this.inCombat) return; // Prevent going to town while in combat
 
@@ -137,7 +124,6 @@
         ]);
       }
 
-      // Show shop menu
       shop() {
         let shopList = this.shop.map(item => `${item.name} — ${item.price} gold`).join("<br>");
         this.showText(`🛒 Shop:<br>${shopList}`);
@@ -152,7 +138,6 @@
         ]);
       }
 
-      // Buy item from shop
       buyItem(choice) {
         const item = choice.item;
         if (this.player.gold >= item.price) {
@@ -165,7 +150,6 @@
         this.showChoices([{ text: "Back to Shop", action: "shop" }]);
       }
 
-      // Show quest log and available quests
       quests() {
         const questList = Object.entries(this.quests)
           .map(([id, q]) => {
@@ -186,7 +170,6 @@
         ]);
       }
 
-      // Accept a quest
       acceptQuest(choice) {
         const id = choice.questId;
         if (!this.activeQuests.includes(id)) {
@@ -199,7 +182,6 @@
         this.showChoices([{ text: "Back to Quests", action: "quests" }]);
       }
 
-      // Handle Forest location
       forest() {
         this.showText(`You are in the Forest. HP: ${this.player.health}<br>What would you like to do?`);
         this.showChoices([
@@ -209,7 +191,6 @@
         ]);
       }
 
-      // Handle fight with Goblin
       fightGoblin() {
         this.currentMonster = {
           name: "Goblin",
@@ -225,7 +206,6 @@
         ]);
       }
 
-      // Handle fight with Boss
       fightBoss() {
         this.currentBoss = {
           name: "Dragon",
@@ -241,12 +221,9 @@
         ]);
       }
 
-      // Attack the monster
       attackMonster() {
-        if (!this.currentMonster) {
-          this.showText("There's no monster to attack.");
-          return;
-        }
+        if (!this.currentMonster) return;
+
         this.currentMonster.health -= this.player.attack;
 
         if (this.currentMonster.health <= 0) {
@@ -260,17 +237,15 @@
           }
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          this.showText(`The ${this.currentMonster.name} attacks back! It has ${this.currentMonster.health} HP left.`);
+          this.player.health -= this.currentMonster.attack;
+          this.showText(`The ${this.currentMonster.name} attacks back! You have ${this.player.health} HP left.`);
           this.showChoices([{ text: "Attack again", action: "attackMonster" }, { text: "Flee", action: "flee" }]);
         }
       }
 
-      // Attack the boss
       attackBoss() {
-        if (!this.currentBoss) {
-          this.showText("There's no boss to attack.");
-          return;
-        }
+        if (!this.currentBoss) return;
+
         this.currentBoss.health -= this.player.attack;
 
         if (this.currentBoss.health <= 0) {
@@ -279,19 +254,18 @@
           this.showText(`You defeated the ${this.currentBoss.name}! You gained ${this.currentBoss.reward.exp} EXP and ${this.currentBoss.reward.gold} gold.`);
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          this.showText(`The ${this.currentBoss.name} attacks back! It has ${this.currentBoss.health} HP left.`);
+          this.player.health -= this.currentBoss.attack;
+          this.showText(`The ${this.currentBoss.name} attacks back! You have ${this.player.health} HP left.`);
           this.showChoices([{ text: "Attack again", action: "attackBoss" }, { text: "Flee", action: "flee" }]);
         }
       }
 
-      // Flee from battle
       flee() {
         this.showText("You fled from the battle!");
         this.inCombat = false;
         this.showChoices([{ text: "Back to Town", action: "town" }]);
       }
 
-      // View Inventory
       inventory() {
         if (this.player.inventory.length === 0) {
           this.showText("Your inventory is empty.");
@@ -301,7 +275,6 @@
         this.showChoices([{ text: "Back to Town", action: "town" }]);
       }
 
-      // Exit the game
       exitGame() {
         this.showText("Thanks for playing!");
         document.getElementById("game-choices").innerHTML = "";
@@ -311,5 +284,6 @@
     const game = new Game();
     game.town();
   </script>
+
 </body>
 </html>
