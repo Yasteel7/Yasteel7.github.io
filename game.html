@@ -255,25 +255,13 @@
           this.quests.goblinHunt.progress++;
           this.showText(`You defeated the ${this.currentMonster.name}! You gained ${this.currentMonster.reward.exp} EXP and ${this.currentMonster.reward.gold} gold.`);
           if (this.quests.goblinHunt.progress >= this.quests.goblinHunt.target) {
+            this.showText("Quest completed: Goblin Hunt!");
             this.quests.goblinHunt.completed = true;
-            this.showText("You completed the Goblin Hunt quest!");
           }
-          this.inCombat = false;
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          // Monster attacks back
-          this.player.health -= this.currentMonster.attack;
-          this.showText(`You attacked the ${this.currentMonster.name}! ${this.currentMonster.name}'s health: ${this.currentMonster.health}<br>Your HP: ${this.player.health}`);
-          if (this.player.health <= 0) {
-            this.showText("You were defeated!");
-            this.inCombat = false;
-            this.showChoices([{ text: "Back to Town", action: "town" }]);
-          } else {
-            this.showChoices([
-              { text: "Attack again", action: "attackMonster" },
-              { text: "Flee", action: "flee" }
-            ]);
-          }
+          this.showText(`The ${this.currentMonster.name} attacks back! It has ${this.currentMonster.health} HP left.`);
+          this.showChoices([{ text: "Attack again", action: "attackMonster" }, { text: "Flee", action: "flee" }]);
         }
       }
 
@@ -288,28 +276,11 @@
         if (this.currentBoss.health <= 0) {
           this.player.exp += this.currentBoss.reward.exp;
           this.player.gold += this.currentBoss.reward.gold;
-          this.quests.bossFight.progress++;
           this.showText(`You defeated the ${this.currentBoss.name}! You gained ${this.currentBoss.reward.exp} EXP and ${this.currentBoss.reward.gold} gold.`);
-          if (this.quests.bossFight.progress >= this.quests.bossFight.target) {
-            this.quests.bossFight.completed = true;
-            this.showText("You completed the Boss Fight quest!");
-          }
-          this.inCombat = false;
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
-          // Boss attacks back
-          this.player.health -= this.currentBoss.attack;
-          this.showText(`You attacked the ${this.currentBoss.name}! ${this.currentBoss.name}'s health: ${this.currentBoss.health}<br>Your HP: ${this.player.health}`);
-          if (this.player.health <= 0) {
-            this.showText("You were defeated!");
-            this.inCombat = false;
-            this.showChoices([{ text: "Back to Town", action: "town" }]);
-          } else {
-            this.showChoices([
-              { text: "Attack again", action: "attackBoss" },
-              { text: "Flee", action: "flee" }
-            ]);
-          }
+          this.showText(`The ${this.currentBoss.name} attacks back! It has ${this.currentBoss.health} HP left.`);
+          this.showChoices([{ text: "Attack again", action: "attackBoss" }, { text: "Flee", action: "flee" }]);
         }
       }
 
