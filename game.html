@@ -197,10 +197,13 @@
       attackMonster() {
         if (!this.currentMonster) return;
 
+        // Player attacks the monster
+        this.currentMonster.health -= this.player.attack;
+        // Monster attacks back
         const damageTaken = this.currentMonster.attack;
         this.player.health -= damageTaken;
 
-        this.showText(`You attack the ${this.currentMonster.name}!<br>${this.currentMonster.name} hits back and deals ${damageTaken} damage! Your HP: ${this.player.health}`);
+        this.showText(`You attack the ${this.currentMonster.name}!<br>${this.currentMonster.name} hits back and deals ${damageTaken} damage!<br>Your HP: ${this.player.health}`);
 
         if (this.currentMonster.health <= 0) {
           this.player.exp += this.currentMonster.reward.exp;
@@ -213,6 +216,9 @@
           }
           this.inCombat = false;  // Reset the combat flag
           this.showChoices([{ text: "Back to Town", action: "town" }]);
+        } else if (this.player.health <= 0) {
+          this.showText("You were defeated! Game Over.");
+          this.showChoices([{ text: "Restart", action: "restartGame" }]);
         } else {
           this.showChoices([{ text: "Attack again", action: "attackMonster" }, { text: "Flee", action: "flee" }]);
         }
@@ -236,6 +242,19 @@
       exitGame() {
         this.showText("Thanks for playing!");
         document.getElementById("game-choices").innerHTML = "";
+      }
+
+      restartGame() {
+        this.player.health = 100;
+        this.player.exp = 0;
+        this.player.gold = 50;
+        this.player.inventory = [];
+        this.player.currentLocation = "Town";
+        this.inCombat = false;
+        this.currentMonster = null;
+        this.activeQuests = [];
+        this.showText("Game has been restarted.");
+        this.town();
       }
     }
 
