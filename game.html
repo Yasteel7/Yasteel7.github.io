@@ -1,3 +1,4 @@
+<!-- A simple text-based RPG game using HTML, CSS, and JavaScript. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -103,7 +104,7 @@
       town() {
         if (this.inCombat) return;
 
-        this.showText(`Welcome to the Town! HP: ${this.player.health}<br>What would you like to do?`);
+        this.showText(`Welcome to the Town! HP: ${this.player.health} | Level: ${this.player.level} | EXP: ${this.player.exp}<br>What would you like to do?`);
         this.showChoices([
           { text: "Go to the Forest", action: "forest" },
           { text: "View Quests", action: "quests" },
@@ -214,6 +215,7 @@
             this.showText("Quest completed: Goblin Hunt!");
             this.quests.goblinHunt.completed = true;
           }
+          this.checkLevelUp();
           this.inCombat = false;  // Reset the combat flag
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else if (this.player.health <= 0) {
@@ -221,6 +223,16 @@
           this.showChoices([{ text: "Restart", action: "restartGame" }]);
         } else {
           this.showChoices([{ text: "Attack again", action: "attackMonster" }, { text: "Flee", action: "flee" }]);
+        }
+      }
+
+      checkLevelUp() {
+        const expNeeded = this.player.level * 100; // Level-up threshold (increases by 100 each level)
+        if (this.player.exp >= expNeeded) {
+          this.player.level++;
+          this.player.attack += 5;
+          this.player.health += 20;
+          this.showText(`You leveled up! You are now level ${this.player.level}.`);
         }
       }
 
@@ -247,6 +259,8 @@
       restartGame() {
         this.player.health = 100;
         this.player.exp = 0;
+        this.player.level = 1;
+        this.player.attack = 15;
         this.player.gold = 50;
         this.player.inventory = [];
         this.player.currentLocation = "Town";
