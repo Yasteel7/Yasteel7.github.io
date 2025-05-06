@@ -189,7 +189,18 @@
     }
 
     // Initial load
-    goTown();
+    function goTown() {
+  log("You are in the town.");
+  updateStats();
+  document.getElementById("menu").innerHTML = `
+    <button onclick="goTown()">🏠 Town</button>
+    <button onclick="fight()">⚔️ Fight</button>
+    <button onclick="openShop()">🛒 Shop</button>
+    <button onclick="viewQuests()">📜 Quests</button>
+    <button onclick="openInventory()">🎒 Inventory</button>
+  `;
+}
+;
   </script>
 </body>
 </html>
