@@ -29,6 +29,9 @@
 
   <h1>🗡️ The Adventure Begins</h1>
   <div id="text"></div>
+  <div id="stats">
+    <p>Gold: <span id="gold"></span></p>
+  </div>
   <div class="choices" id="choices"></div>
 
   <script>
@@ -41,8 +44,8 @@
         level: 1,
         exp: 0,
         inventory: [],
-        skills: ["Basic Attack"], // Starting skill
-        defense: 0,  // Added defense stat
+        skills: ["Basic Attack"],
+        defense: 0,
         equipment: [],
       },
       locations: {
@@ -251,6 +254,10 @@
         });
       },
 
+      updateGoldDisplay() {
+        document.getElementById("gold").innerText = this.player.gold;
+      },
+
       showNode(nodeKey) {
         const node = this.locations[nodeKey];
         if (typeof node.description === "function") {
@@ -259,6 +266,7 @@
           this.showText(node.description);
         }
         this.showChoices(node.choices);
+        this.updateGoldDisplay();  // Update the gold display after any action
       }
     };
 
