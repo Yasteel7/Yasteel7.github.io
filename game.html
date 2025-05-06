@@ -62,7 +62,6 @@
           level: 1,
           gold: 50,
           inventory: [],
-          skills: [{ name: "Slash", damage: 30 }],
           currentLocation: "Town"
         };
         this.quests = {
@@ -74,15 +73,6 @@
             target: 3,
             monster: "Goblin",
             reward: { exp: 50, gold: 50 }
-          },
-          bossFight: {
-            name: "Boss Fight",
-            description: "Defeat the Boss Dragon.",
-            completed: false,
-            progress: 0,
-            target: 1,
-            monster: "Dragon",
-            reward: { exp: 200, gold: 100 }
           }
         };
         this.shop = [
@@ -92,7 +82,6 @@
         this.activeQuests = [];
         this.inCombat = false;
         this.currentMonster = null;
-        this.currentBoss = null;
       }
 
       showText(text) {
@@ -112,7 +101,7 @@
       }
 
       town() {
-        if (this.inCombat) return; // Prevent going to town while in combat
+        if (this.inCombat) return;
 
         this.showText(`Welcome to the Town! HP: ${this.player.health}<br>What would you like to do?`);
         this.showChoices([
@@ -186,7 +175,6 @@
         this.showText(`You are in the Forest. HP: ${this.player.health}<br>What would you like to do?`);
         this.showChoices([
           { text: "Fight a Goblin", action: "fightGoblin" },
-          { text: "Fight the Boss Dragon", action: "fightBoss" },
           { text: "Go back to Town", action: "town" }
         ]);
       }
@@ -202,21 +190,6 @@
         this.showText(`A wild Goblin appears! Your HP: ${this.player.health}<br>Fight or flee?`);
         this.showChoices([
           { text: "Attack", action: "attackMonster" },
-          { text: "Flee", action: "flee" }
-        ]);
-      }
-
-      fightBoss() {
-        this.currentBoss = {
-          name: "Dragon",
-          health: 100,
-          attack: 25,
-          reward: { exp: 200, gold: 100 }
-        };
-        this.inCombat = true;
-        this.showText(`A wild Dragon appears! Your HP: ${this.player.health}<br>Fight or flee?`);
-        this.showChoices([
-          { text: "Attack", action: "attackBoss" },
           { text: "Flee", action: "flee" }
         ]);
       }
@@ -240,23 +213,6 @@
           this.player.health -= this.currentMonster.attack;
           this.showText(`The ${this.currentMonster.name} attacks back! You have ${this.player.health} HP left.`);
           this.showChoices([{ text: "Attack again", action: "attackMonster" }, { text: "Flee", action: "flee" }]);
-        }
-      }
-
-      attackBoss() {
-        if (!this.currentBoss) return;
-
-        this.currentBoss.health -= this.player.attack;
-
-        if (this.currentBoss.health <= 0) {
-          this.player.exp += this.currentBoss.reward.exp;
-          this.player.gold += this.currentBoss.reward.gold;
-          this.showText(`You defeated the ${this.currentBoss.name}! You gained ${this.currentBoss.reward.exp} EXP and ${this.currentBoss.reward.gold} gold.`);
-          this.showChoices([{ text: "Back to Town", action: "town" }]);
-        } else {
-          this.player.health -= this.currentBoss.attack;
-          this.showText(`The ${this.currentBoss.name} attacks back! You have ${this.player.health} HP left.`);
-          this.showChoices([{ text: "Attack again", action: "attackBoss" }, { text: "Flee", action: "flee" }]);
         }
       }
 
