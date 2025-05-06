@@ -91,48 +91,57 @@
         }
       },
       fightMonster() {
-        let monsterHealth = this.monster.health;
+        const monsterHealth = this.monster.health;
         let playerAttack = Math.floor(Math.random() * 20) + this.player.attack; // Regular attack
+        const basicAttack = this.player.skills.includes("Basic Attack") ? 15 : 0; // Basic attack damage
         let monsterAttack = this.monster.attack;
-
-        // Show basic attack option
-        const basicAttack = this.player.skills.includes("Basic Attack") ? 15 : 0;
 
         this.showText("Choose your action: 1. Basic Attack  2. Regular Attack");
 
-        // Combat decision: Basic or Regular Attack
-        const combatChoice = prompt("Choose an action: 1 for Basic Attack, 2 for Regular Attack");
+        // Show combat choices (buttons for the user to choose)
+        this.showChoices([
+          { text: "Use Basic Attack", action: "basicAttack", next: "combatOutcome" },
+          { text: "Use Regular Attack", action: "regularAttack", next: "combatOutcome" },
+        ]);
+      },
 
-        if (combatChoice === "1" && basicAttack > 0) {
-          this.showText(`You use Basic Attack and deal ${basicAttack} damage!`);
-          monsterHealth -= basicAttack;
-        } else if (combatChoice === "2") {
-          this.showText(`You attack the monster for ${playerAttack} damage!`);
-          monsterHealth -= playerAttack;
-        } else {
-          this.showText("Invalid choice. You missed your turn!");
-        }
+      basicAttack() {
+        this.player.attackMonster(15); // Basic attack deals 15 damage
+      },
 
-        // Monster attacks player
-        this.showText(`The monster attacks you for ${monsterAttack} damage!`);
-        this.player.health -= monsterAttack;
+      regularAttack() {
+        let damage = Math.floor(Math.random() * 20) + this.player.attack; // Random attack between range
+        this.player.attackMonster(damage);
+      },
 
-        // Check if monster is defeated
-        if (monsterHealth <= 0) {
+      attackMonster(damage) {
+        this.monster.health -= damage;
+        this.showText(`You dealt ${damage} damage to the monster!`);
+
+        // Monster attacks back
+        this.monsterAttacks();
+
+        // Check if the monster is defeated
+        if (this.monster.health <= 0) {
           this.showText("You defeated the monster!");
           this.player.exp += 20;
           this.player.gold += 20;
           this.checkLevelUp();
+          this.showChoices([{ text: "Go back to town", next: "town" }]);
         }
 
-        // Check if player is defeated
+        // Check if the player is defeated
         if (this.player.health <= 0) {
           this.showText("You have been defeated by the monster. Game over.");
         }
-
-        // Show choices after battle
-        this.showChoices([{ text: "Go back to town", next: "town" }]);
       },
+
+      monsterAttacks() {
+        let damage = this.monster.attack;
+        this.player.health -= damage;
+        this.showText(`The monster attacks you for ${damage} damage!`);
+      },
+
       checkLevelUp() {
         if (this.player.exp >= 100) {
           this.player.level++;
@@ -143,15 +152,18 @@
           this.unlockSkills();
         }
       },
+
       unlockSkills() {
         if (this.player.level >= 5 && !this.player.skills.includes("Special Attack")) {
           this.player.skills.push("Special Attack");
           this.showText("You gained a new skill: Special Attack!");
         }
       },
+
       showText(text) {
         document.getElementById("text").innerText = text;
       },
+
       showChoices(choices) {
         const choicesDiv = document.getElementById("choices");
         choicesDiv.innerHTML = "";
@@ -160,13 +172,14 @@
           btn.textContent = choice.text;
           btn.onclick = () => {
             if (choice.action) {
-              this[choice.action]();
+              this[choice.action]();  // Execute the action for the choice
             }
-            this.showNode(choice.next);
+            this.showNode(choice.next); // Show the next node or outcome
           };
           choicesDiv.appendChild(btn);
         });
       },
+
       showNode(nodeKey) {
         const node = this.locations[nodeKey];
         this.showText(node.description);
