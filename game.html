@@ -36,6 +36,7 @@
     <button onclick="openShop()">🛒 Shop</button>
     <button onclick="viewQuests()">📜 Quests</button>
     <button onclick="openInventory()">🎒 Inventory</button>
+    <button onclick="goTavern()">🍻 Tavern</button>
   </div>
   <div id="log"></div>
 
@@ -70,6 +71,14 @@
     function goTown() {
       log("You are in the town.");
       updateStats();
+      document.getElementById("menu").innerHTML = `
+        <button onclick="goTown()">🏠 Town</button>
+        <button onclick="fight()">⚔️ Fight</button>
+        <button onclick="openShop()">🛒 Shop</button>
+        <button onclick="viewQuests()">📜 Quests</button>
+        <button onclick="openInventory()">🎒 Inventory</button>
+        <button onclick="goTavern()">🍻 Tavern</button>
+      `;
     }
 
     function fight() {
@@ -111,24 +120,27 @@
     }
 
     function openShop() {
-      let shopLog = "Welcome to the shop:\n";
       const shopItems = [
         { name: "Iron Sword", type: "weapon", attack: 10, cost: 40 },
         { name: "Iron Armor", type: "armor", hp: 20, cost: 50 },
         { name: "Health Potion", type: "consumable", effect: 30, cost: 10 }
       ];
-
-      shopItems.forEach((item, i) => {
-        shopLog += `${i + 1}. ${item.name} - ${item.cost} Gold\n`;
-      });
-
-      shopLog += "\nUse buyItem(index) in console to purchase.";
       window.shopItems = shopItems;
-      log(shopLog);
+
+      let shopHtml = "<h3>Shop</h3>";
+      shopItems.forEach((item, i) => {
+        shopHtml += `
+          <div>
+            ${item.name} - ${item.cost} Gold 
+            <button onclick="buyItem(${i})">Buy</button>
+          </div>`;
+      });
+      shopHtml += `<br><button onclick="goTown()">Return to Town</button>`;
+      document.getElementById("log").innerHTML = shopHtml;
     }
 
     function buyItem(index) {
-      const item = window.shopItems[index - 1];
+      const item = window.shopItems[index];
       if (player.gold >= item.cost) {
         player.gold -= item.cost;
         player.inventory.push(item);
@@ -144,20 +156,27 @@
     }
 
     function openInventory() {
-      let invLog = "Inventory:\n";
+      let invHtml = "<h3>Inventory</h3>";
       player.inventory.forEach((item, i) => {
-        invLog += `${i + 1}. ${item.name} (${item.type})\n`;
+        if (item.type === "consumable") {
+          invHtml += `
+            <div>${item.name} (${item.type}) 
+            <button onclick="useItem(${i})">Use</button></div>`;
+        } else {
+          invHtml += `
+            <div>${item.name} (${item.type}) 
+            <button onclick="equipItem(${i})">Equip</button></div>`;
+        }
       });
-
-      invLog += "\nUse useItem(index) or equipItem(index) in the console.";
-      log(invLog);
+      invHtml += `<br><button onclick="goTown()">Return to Town</button>`;
+      document.getElementById("log").innerHTML = invHtml;
     }
 
     function useItem(index) {
-      const item = player.inventory[index - 1];
+      const item = player.inventory[index];
       if (item.type === "consumable") {
         player.hp = Math.min(player.maxHp, player.hp + item.effect);
-        player.inventory.splice(index - 1, 1);
+        player.inventory.splice(index, 1);
         log(`Used ${item.name}. Healed for ${item.effect} HP.`);
         updateStats();
       } else {
@@ -166,7 +185,7 @@
     }
 
     function equipItem(index) {
-      const item = player.inventory[index - 1];
+      const item = player.inventory[index];
       if (item.type === "weapon") {
         if (player.equipped.weapon) {
           player.attack -= player.equipped.weapon.attack;
@@ -188,19 +207,25 @@
       updateStats();
     }
 
+    function goTavern() {
+      const healCost = 20;
+      if (player.gold >= healCost && player.hp < player.maxHp) {
+        player.hp = player.maxHp;
+        player.gold -= healCost;
+        log(`You have been healed at the tavern! Cost: ${healCost} Gold.`);
+      } else if (player.hp === player.maxHp) {
+        log("You are already at full health!");
+      } else {
+        log("You don't have enough gold to heal.");
+      }
+      updateStats();
+      document.getElementById("menu").innerHTML = `
+        <button onclick="goTown()">🏠 Return to Town</button>
+      `;
+    }
+
     // Initial load
-    function goTown() {
-  log("You are in the town.");
-  updateStats();
-  document.getElementById("menu").innerHTML = `
-    <button onclick="goTown()">🏠 Town</button>
-    <button onclick="fight()">⚔️ Fight</button>
-    <button onclick="openShop()">🛒 Shop</button>
-    <button onclick="viewQuests()">📜 Quests</button>
-    <button onclick="openInventory()">🎒 Inventory</button>
-  `;
-}
-;
+    goTown();
   </script>
 </body>
 </html>
