@@ -261,11 +261,19 @@
           this.inCombat = false;
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
+          // Monster attacks back
+          this.player.health -= this.currentMonster.attack;
           this.showText(`You attacked the ${this.currentMonster.name}! ${this.currentMonster.name}'s health: ${this.currentMonster.health}<br>Your HP: ${this.player.health}`);
-          this.showChoices([
-            { text: "Attack again", action: "attackMonster" },
-            { text: "Flee", action: "flee" }
-          ]);
+          if (this.player.health <= 0) {
+            this.showText("You were defeated!");
+            this.inCombat = false;
+            this.showChoices([{ text: "Back to Town", action: "town" }]);
+          } else {
+            this.showChoices([
+              { text: "Attack again", action: "attackMonster" },
+              { text: "Flee", action: "flee" }
+            ]);
+          }
         }
       }
 
@@ -289,25 +297,36 @@
           this.inCombat = false;
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
+          // Boss attacks back
+          this.player.health -= this.currentBoss.attack;
           this.showText(`You attacked the ${this.currentBoss.name}! ${this.currentBoss.name}'s health: ${this.currentBoss.health}<br>Your HP: ${this.player.health}`);
-          this.showChoices([
-            { text: "Attack again", action: "attackBoss" },
-            { text: "Flee", action: "flee" }
-          ]);
+          if (this.player.health <= 0) {
+            this.showText("You were defeated!");
+            this.inCombat = false;
+            this.showChoices([{ text: "Back to Town", action: "town" }]);
+          } else {
+            this.showChoices([
+              { text: "Attack again", action: "attackBoss" },
+              { text: "Flee", action: "flee" }
+            ]);
+          }
         }
       }
 
-      // Flee from the fight
+      // Flee from battle
       flee() {
-        this.showText("You fled from the fight.");
+        this.showText("You fled from the battle!");
         this.inCombat = false;
         this.showChoices([{ text: "Back to Town", action: "town" }]);
       }
 
-      // View inventory
+      // View Inventory
       inventory() {
-        let inventoryList = this.player.inventory.length ? this.player.inventory.join("<br>") : "Your inventory is empty.";
-        this.showText(`🛍️ Inventory:<br>${inventoryList}`);
+        if (this.player.inventory.length === 0) {
+          this.showText("Your inventory is empty.");
+        } else {
+          this.showText(`Your Inventory:<br>${this.player.inventory.join("<br>")}`);
+        }
         this.showChoices([{ text: "Back to Town", action: "town" }]);
       }
 
