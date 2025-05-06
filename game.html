@@ -208,6 +208,7 @@
             this.showText("Quest completed: Goblin Hunt!");
             this.quests.goblinHunt.completed = true;
           }
+          this.inCombat = false;  // Reset the combat flag
           this.showChoices([{ text: "Back to Town", action: "town" }]);
         } else {
           this.player.health -= this.currentMonster.attack;
@@ -218,7 +219,7 @@
 
       flee() {
         this.showText("You fled from the battle!");
-        this.inCombat = false;
+        this.inCombat = false;  // Reset the combat flag
         this.showChoices([{ text: "Back to Town", action: "town" }]);
       }
 
