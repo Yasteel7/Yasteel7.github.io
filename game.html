@@ -1,32 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Text-Based RPG</title>
   <style>
     body {
-      background-color: #222;
-      color: white;
-      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #eee;
+      font-family: monospace;
       padding: 20px;
     }
     button {
+      background-color: #333;
+      color: #eee;
+      border: none;
       padding: 10px;
       margin: 5px;
       cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background-color: #555;
     }
     #game-output {
       margin-bottom: 10px;
-    }
-    #game-choices {
-      margin-top: 20px;
+      white-space: pre-wrap;
     }
   </style>
 </head>
 <body>
 
-  <h1>Text-Based RPG</h1>
+  <h1>🗡️ Text RPG</h1>
   <div id="game-output"></div>
   <div id="game-choices"></div>
 
@@ -34,151 +39,155 @@
     class Game {
       constructor() {
         this.player = {
-          name: "Hero",
           health: 100,
           maxHealth: 100,
-          attack: 15,
           gold: 50,
           inventory: [],
-          level: 1,
-          experience: 0
+          attack: 10,
         };
 
-        this.shop = [
-          { name: "Health Potion", price: 10, effect: "restore health" },
-          { name: "Sword", price: 50, effect: "increase attack by 10" }
+        this.monsters = {
+          goblin: { name: "Goblin", health: 30, attack: 5 }
+        };
+
+        this.shopItems = [
+          { name: "Health Potion", price: 10 },
+          { name: "Sword", price: 25 }
         ];
 
         this.quests = {
           goblinHunt: {
             name: "Goblin Hunt",
-            description: "Defeat 3 Goblins in the Forest.",
-            completed: false,
+            description: "Defeat 3 Goblins",
             progress: 0,
-            target: 3
+            target: 3,
+            completed: false
           }
         };
 
-        this.monsters = [
-          { name: "Goblin", health: 30, attack: 5 },
-          { name: "Wolf", health: 50, attack: 10 }
-        ];
+        this.currentMonster = null;
+        this.output = document.getElementById("game-output");
+        this.choices = document.getElementById("game-choices");
+      }
+
+      start() {
+        this.town();
       }
 
       showText(text) {
-        document.getElementById("game-output").innerHTML = text;
+        this.output.innerHTML = text;
       }
 
-      showChoices(choices) {
-        const choiceButtons = choices.map(choice => {
-          const button = document.createElement("button");
-          button.innerText = choice.text;
-          button.onclick = () => this[choice.action](choice);
-          return button;
+      showChoices(options) {
+        this.choices.innerHTML = "";
+        options.forEach(opt => {
+          const btn = document.createElement("button");
+          btn.textContent = opt.text;
+          btn.onclick = () => opt.action(opt.data);
+          this.choices.appendChild(btn);
         });
-        const choicesDiv = document.getElementById("game-choices");
-        choicesDiv.innerHTML = ""; // Clear previous choices
-        choiceButtons.forEach(button => choicesDiv.appendChild(button));
       }
 
       town() {
-        this.showText(`Welcome to Town! Your HP: ${this.player.health} | Gold: ${this.player.gold} | Level: ${this.player.level}`);
+        this.showText(`🏠 You are in town.\nHP: ${this.player.health}/${this.player.maxHealth} | Gold: ${this.player.gold}`);
         this.showChoices([
-          { text: "Go to the Forest", action: "forest" },
-          { text: "View Quests", action: "quests" },
-          { text: "Go to the Shop", action: "shop" },
-          { text: "Exit", action: "exitGame" }
-        ]);
-      }
-
-      shop() {
-        let shopList = this.shop.map(item => `${item.name} — ${item.price} gold`).join("<br>");
-        this.showText(`🛒 Shop:<br>${shopList}`);
-        this.showChoices([
-          ...this.shop.map(item => ({
-            text: `Buy ${item.name}`,
-            action: "buyItem",
-            item: item
-          })),
-          { text: "Back to Town", action: "town" }
-        ]);
-      }
-
-      buyItem(choice) {
-        const item = choice.item;
-        if (this.player.gold >= item.price) {
-          this.player.gold -= item.price;
-          this.player.inventory.push(item.name);
-          this.showText(`You bought a ${item.name}!`);
-        } else {
-          this.showText("You don't have enough gold.");
-        }
-        this.showChoices([{ text: "Back to Shop", action: "shop" }]);
-      }
-
-      quests() {
-        const questList = Object.entries(this.quests)
-          .map(([id, q]) => {
-            let status = q.completed ? "✅ Completed" : `🕐 In Progress (${q.progress}/${q.target})`;
-            return `${q.name} — ${status}`;
-          }).join("<br>");
-        this.showText(`📜 Quest Log:<br>${questList}`);
-        this.showChoices([
-          { text: "Back to Town", action: "town" }
+          { text: "Go to Forest", action: () => this.forest() },
+          { text: "View Quests", action: () => this.viewQuests() },
+          { text: "Go to Shop", action: () => this.shop() }
         ]);
       }
 
       forest() {
-        this.showText(`You are in the Forest. What would you like to do?`);
+        const goblin = { ...this.monsters.goblin }; // clone so we reset HP
+        this.currentMonster = goblin;
+        this.showText(`🌲 A wild ${goblin.name} appears! HP: ${goblin.health}`);
         this.showChoices([
-          { text: "Fight a Goblin", action: "fightGoblin" },
-          { text: "Go back to Town", action: "town" }
+          { text: "Attack", action: () => this.fight() },
+          { text: "Run", action: () => this.town() }
         ]);
       }
 
-      fightGoblin() {
-        const goblin = this.monsters[0]; // Goblin
-        this.showText(`A ${goblin.name} appears! Fight or flee?`);
-        this.showChoices([
-          { text: "Attack", action: "attackMonster", monster: goblin },
-          { text: "Flee", action: "town" }
-        ]);
-      }
-
-      attackMonster(choice) {
-        const monster = choice.monster;
-        this.showText(`You attack the ${monster.name}!`);
+      fight() {
+        const monster = this.currentMonster;
         monster.health -= this.player.attack;
 
+        let log = `🗡️ You attack the ${monster.name}!\n`;
+
         if (monster.health <= 0) {
-          this.showText(`You defeated the ${monster.name}!`);
-          this.quests.goblinHunt.progress++;
-          if (this.quests.goblinHunt.progress >= this.quests.goblinHunt.target) {
-            this.quests.goblinHunt.completed = true;
-            this.showText("Quest completed: Goblin Hunt!");
+          log += `💀 You defeated the ${monster.name}!\n`;
+
+          // Quest progress
+          const quest = this.quests.goblinHunt;
+          if (!quest.completed) {
+            quest.progress++;
+            if (quest.progress >= quest.target) {
+              quest.completed = true;
+              log += `✅ Quest completed: ${quest.name}!\n`;
+            }
           }
-          this.showChoices([{ text: "Back to Town", action: "town" }]);
+
+          this.showText(log);
+          this.showChoices([{ text: "Back to Town", action: () => this.town() }]);
         } else {
-          this.showText(`${monster.name} attacks back!`);
+          // Monster attacks back
           this.player.health -= monster.attack;
+          log += `The ${monster.name} strikes back! You lose ${monster.attack} HP.\nYour HP: ${this.player.health}`;
+
           if (this.player.health <= 0) {
-            this.showText("You have been defeated! Game Over.");
-            this.showChoices([{ text: "Exit Game", action: "exitGame" }]);
+            this.showText("☠️ You have been defeated! Game Over.");
+            this.showChoices([]);
           } else {
-            this.showChoices([{ text: "Attack again", action: "attackMonster", monster: monster }]);
+            this.showText(log + `\n${monster.name}'s HP: ${monster.health}`);
+            this.showChoices([
+              { text: "Attack Again", action: () => this.fight() },
+              { text: "Run", action: () => this.town() }
+            ]);
           }
         }
       }
 
-      exitGame() {
-        this.showText("Thanks for playing!");
-        document.getElementById("game-choices").innerHTML = "";
+      viewQuests() {
+        const q = this.quests.goblinHunt;
+        const text = `📜 ${q.name}: ${q.description}\nProgress: ${q.progress}/${q.target}\nStatus: ${q.completed ? "✅ Completed" : "In Progress"}`;
+        this.showText(text);
+        this.showChoices([{ text: "Back to Town", action: () => this.town() }]);
+      }
+
+      shop() {
+        let text = "🛒 Welcome to the shop:\n";
+        this.shopItems.forEach((item, i) => {
+          text += `${i + 1}. ${item.name} - ${item.price} gold\n`;
+        });
+        this.showText(text);
+
+        const buttons = this.shopItems.map((item, i) => ({
+          text: `Buy ${item.name}`,
+          action: () => this.buy(item)
+        }));
+        buttons.push({ text: "Back to Town", action: () => this.town() });
+        this.showChoices(buttons);
+      }
+
+      buy(item) {
+        if (this.player.gold >= item.price) {
+          this.player.gold -= item.price;
+          this.player.inventory.push(item.name);
+          if (item.name === "Health Potion") {
+            this.player.health = Math.min(this.player.maxHealth, this.player.health + 30);
+          }
+          if (item.name === "Sword") {
+            this.player.attack += 5;
+          }
+          this.showText(`You bought a ${item.name}.\nHP: ${this.player.health} | Gold: ${this.player.gold}`);
+        } else {
+          this.showText("Not enough gold!");
+        }
+        this.showChoices([{ text: "Back to Shop", action: () => this.shop() }]);
       }
     }
 
     const game = new Game();
-    game.town();
+    game.start();
   </script>
-
 </body>
 </html>
