@@ -208,20 +208,38 @@
     }
 
     function goTavern() {
+      // Show Tavern options
       const healCost = 20;
-      if (player.gold >= healCost && player.hp < player.maxHp) {
+      if (player.hp < player.maxHp) {
+        document.getElementById("log").innerHTML = `
+          <h3>Welcome to the Tavern</h3>
+          <p>Do you want to heal for ${healCost} gold?</p>
+          <button onclick="healAtTavern()">Heal</button>
+          <button onclick="goTown()">Leave Tavern</button>
+        `;
+      } else {
+        document.getElementById("log").innerHTML = `
+          <h3>Welcome to the Tavern</h3>
+          <p>You are already at full health!</p>
+          <button onclick="goTown()">Leave Tavern</button>
+        `;
+      }
+    }
+
+    function healAtTavern() {
+      const healCost = 20;
+      if (player.gold >= healCost) {
         player.hp = player.maxHp;
         player.gold -= healCost;
         log(`You have been healed at the tavern! Cost: ${healCost} Gold.`);
-      } else if (player.hp === player.maxHp) {
-        log("You are already at full health!");
+        updateStats();
+        document.getElementById("menu").innerHTML = `
+          <button onclick="goTown()">🏠 Return to Town</button>
+        `;
       } else {
         log("You don't have enough gold to heal.");
+        updateStats();
       }
-      updateStats();
-      document.getElementById("menu").innerHTML = `
-        <button onclick="goTown()">🏠 Return to Town</button>
-      `;
     }
 
     // Initial load
