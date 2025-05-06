@@ -75,22 +75,6 @@
           }
         };
         this.activeQuests = [];
-        this.bosses = {
-          dragon: {
-            name: "Dragon",
-            health: 200,
-            attack: 30,
-            reward: { exp: 300, gold: 500 },
-            specialAbility: "Breath of Fire (Deal damage to all players)"
-          },
-          demonKing: {
-            name: "Demon King",
-            health: 300,
-            attack: 40,
-            reward: { exp: 500, gold: 800 },
-            specialAbility: "Hellstorm (Deal damage to player)"
-          }
-        };
         this.currentLocation = "Town"; // Initial location
       }
 
@@ -212,29 +196,29 @@
 
       // Fight Goblin
       fightGoblin() {
-        this.fightMonster({ name: "Goblin", health: 30, attack: 8, reward: { exp: 15, gold: 15 } });
+        this.fightMonster({ name: "Goblin", health: 30, attack: 8, reward: { exp: 15, gold: 15 }, type: "Goblin" });
       }
 
       // Fight Vampire
       fightVampire() {
-        this.fightMonster({ name: "Vampire", health: 100, attack: 20, reward: { exp: 50, gold: 60 } });
+        this.fightMonster({ name: "Vampire", health: 100, attack: 20, reward: { exp: 50, gold: 60 }, type: "Vampire" });
       }
 
-      // Fight a monster
+      // Handle fight logic
       fightMonster(monster) {
-        this.showText(`You encountered a ${monster.name}! Fight!`);
         const playerAttack = Math.max(0, this.player.attack - monster.attack);
-        this.player.health -= monster.attack;
-        monster.health -= playerAttack;
+        let playerHealth = this.player.health - monster.attack;
+        let monsterHealth = monster.health - playerAttack;
 
-        if (monster.health <= 0) {
-          this.showText(`You defeated the ${monster.name}!`);
+        if (monsterHealth <= 0) {
           this.player.exp += monster.reward.exp;
           this.player.gold += monster.reward.gold;
-        } else if (this.player.health <= 0) {
+          this.quests.goblinHunt.progress++;
+          this.showText(`You defeated the ${monster.name}! You gained ${monster.reward.exp} EXP and ${monster.reward.gold} gold.`);
+        } else if (playerHealth <= 0) {
           this.showText("You have been defeated!");
         } else {
-          this.showText(`The ${monster.name} has ${monster.health} health left.`);
+          this.showText(`You fought the ${monster.name}! Your health: ${playerHealth} | ${monster.name} health: ${monsterHealth}`);
         }
 
         this.showChoices([{ text: "Back to town", next: "town" }]);
