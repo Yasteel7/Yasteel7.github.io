@@ -1,228 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Old School RPG</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Text-Based RPG</title>
   <style>
     body {
-      font-family: monospace;
-      background: #111;
-      color: #0f0;
-      padding: 20px;
+      font-family: Arial, sans-serif;
+    }
+    #game-output {
+      margin-bottom: 20px;
+      padding: 10px;
+      border: 1px solid #000;
+      width: 80%;
+      max-width: 600px;
+      margin: 0 auto;
+      background-color: #f4f4f4;
     }
     button {
       margin: 5px;
       padding: 10px;
       font-size: 16px;
-      background-color: #222;
-      color: #0f0;
-      border: 1px solid #0f0;
-      cursor: pointer;
-    }
-    button:hover {
-      background-color: #333;
     }
   </style>
 </head>
 <body>
-  <h1>Old School RPG</h1>
-  <pre id="gameText">Welcome to the game.</pre>
-  <div id="choices"></div>
-  <p><strong>Gold:</strong> <span id="goldDisplay">0</span></p>
+
+  <div id="game-output"></div>
+  <div id="game-choices"></div>
 
   <script>
-    const game = {
-      player: {
-        name: "Hero",
-        level: 1,
-        exp: 0,
-        expToLevel: 20,
-        health: 100,
-        maxHealth: 100,
-        gold: 50,
-        attack: 10,
-        defense: 5,
-        skills: ["Fireball"],
-        inventory: [],
-      },
-      currentMonster: null,
+    class Game {
+      constructor() {
+        this.player = {
+          name: "Hero",
+          health: 100,
+          attack: 15,
+          exp: 0,
+          level: 1,
+          gold: 50,
+          inventory: [],
+          skills: ["Slash"],
+          currentLocation: "Town"
+        };
+        this.quests = {
+          goblinHunt: {
+            name: "Goblin Hunt",
+            description: "Defeat 3 Goblins in the Forest.",
+            completed: false,
+            progress: 0,
+            target: 3,
+            monster: "Goblin",
+            reward: { exp: 50, gold: 50 }
+          },
+          vampireSlayer: {
+            name: "Vampire Slayer",
+            description: "Defeat 1 Vampire in the Swamp.",
+            completed: false,
+            progress: 0,
+            target: 1,
+            monster: "Vampire",
+            reward: { exp: 100, gold: 120 },
+            requires: ["goblinHunt"]
+          },
+          demonHunter: {
+            name: "Demon Hunter",
+            description: "Defeat the Demon King in the Swamp.",
+            completed: false,
+            progress: 0,
+            target: 1,
+            monster: "Demon King",
+            reward: { exp: 150, gold: 200 },
+            requires: ["vampireSlayer"]
+          }
+        };
+        this.activeQuests = [];
+        this.bosses = {
+          dragon: {
+            name: "Dragon",
+            health: 200,
+            attack: 30,
+            reward: { exp: 300, gold: 500 },
+            specialAbility: "Breath of Fire (Deal damage to all players)"
+          },
+          demonKing: {
+            name: "Demon King",
+            health: 300,
+            attack: 40,
+            reward: { exp: 500, gold: 800 },
+            specialAbility: "Hellstorm (Deal damage to player)"
+          }
+        };
+        this.currentLocation = "Town"; // Initial location
+      }
 
-      start() {
-        this.showText("You awaken in a mysterious town.");
-        this.showChoices([
-          { text: "Go to the forest", next: "forest" },
-          { text: "Visit the shop", next: "shop" },
-          { text: "View inventory", action: "showInventory" },
-          { text: "View stats", action: "showStats" }
-        ]);
-        this.updateGoldDisplay();
-      },
+      // Game output function
+      showText(text) {
+        document.getElementById("game-output").innerHTML = text;
+      }
 
-      goTo(next) {
-        switch (next) {
-          case "forest":
-            this.fightMonster();
-            break;
-          case "shop":
-            this.enterShop();
-            break;
-          case "town":
-            this.start();
-            break;
+      // Show choices function
+      showChoices(choices) {
+        const choiceButtons = choices.map(choice => {
+          const button = document.createElement("button");
+          button.innerText = choice.text;
+          button.onclick = () => this[choice.action](choice);
+          return button;
+        });
+        const choicesDiv = document.getElementById("game-choices");
+        choicesDiv.innerHTML = ""; // Clear previous choices
+        choiceButtons.forEach(button => choicesDiv.appendChild(button));
+      }
+
+      // Save the game
+      saveGame() {
+        localStorage.setItem("rpgGameSave", JSON.stringify({
+          player: this.player,
+          quests: this.quests,
+          activeQuests: this.activeQuests,
+          currentLocation: this.currentLocation
+        }));
+        this.showText("Game saved!");
+      }
+
+      // Load the game
+      loadGame() {
+        const savedGame = JSON.parse(localStorage.getItem("rpgGameSave"));
+        if (savedGame) {
+          this.player = savedGame.player;
+          this.quests = savedGame.quests;
+          this.activeQuests = savedGame.activeQuests;
+          this.currentLocation = savedGame.currentLocation;
+          this.showText("Game loaded!");
+        } else {
+          this.showText("No saved game found.");
         }
-      },
+      }
 
-      fightMonster() {
-        const monster = this.getRandomMonster();
-        this.currentMonster = { ...monster };
-        this.showText(`A wild ${monster.name} appears!\nHealth: ${monster.health}`);
+      // Show town menu
+      town() {
+        this.showText("Welcome to the Town! What would you like to do?");
         this.showChoices([
-          { text: "Attack", action: "combat" },
-          { text: "Flee", action: "fleeBattle" }
+          { text: "Go to the Forest", action: "forest" },
+          { text: "Go to the Swamp", action: "swamp" },
+          { text: "View Quests", action: "quests" },
+          { text: "Save Game", action: "saveGame" },
+          { text: "Load Game", action: "loadGame" }
         ]);
-      },
+      }
 
-      getRandomMonster() {
-        const monsters = [
-          { name: "Slime", health: 20, attack: 5, reward: { exp: 10, gold: 10 }},
-          { name: "Goblin", health: 30, attack: 8, reward: { exp: 15, gold: 15 }},
-          { name: "Orc", health: 50, attack: 12, reward: { exp: 25, gold: 30 }},
-        ];
-        return monsters[Math.floor(Math.random() * monsters.length)];
-      },
+      // Show quest log and available quests
+      quests() {
+        const questList = Object.entries(this.quests)
+          .map(([id, q]) => {
+            let status = "🕐 Available";
+            if (q.completed) status = "✅ Completed";
+            else if (this.activeQuests.includes(id)) status = `🟢 In Progress (${q.progress}/${q.target})`;
+            else if (q.requires && !q.requires.every(req => this.quests[req]?.completed)) {
+              status = "🔒 Locked";
+            }
+            return `${q.name} — ${status}`;
+          }).join("<br>");
+        this.showText(`📜 Quest Log:<br>${questList}`);
 
-      combat() {
-        const monster = this.currentMonster;
-        if (!monster) return;
+        const questChoices = Object.entries(this.quests)
+          .filter(([id, q]) => {
+            const notStarted = !this.activeQuests.includes(id) && !q.completed;
+            const unlocked = !q.requires || q.requires.every(req => this.quests[req]?.completed);
+            return notStarted && unlocked;
+          })
+          .map(([id, q]) => ({ text: `Accept "${q.name}"`, action: "acceptQuest", questId: id }));
 
-        const playerAttack = Math.floor(Math.random() * 10) + this.player.attack;
-        const monsterAttack = Math.floor(Math.random() * monster.attack);
+        this.showChoices([
+          ...questChoices,
+          { text: "Back to town", next: "town" }
+        ]);
+      }
 
+      // Accept a quest
+      acceptQuest(choice) {
+        const id = choice.questId;
+        if (!this.activeQuests.includes(id)) {
+          this.activeQuests.push(id);
+          this.quests[id].progress = 0;
+          this.showText(`You accepted the quest: ${this.quests[id].name}`);
+        } else {
+          this.showText("You're already on that quest.");
+        }
+        this.showChoices([{ text: "Back to Quests", next: "quests" }]);
+      }
+
+      // Handle Forest location
+      forest() {
+        this.currentLocation = "Forest";
+        this.showText("You are in the Forest. What would you like to do?");
+        this.showChoices([
+          { text: "Fight a Goblin", action: "fightGoblin" },
+          { text: "Go back to Town", action: "town" }
+        ]);
+      }
+
+      // Handle Swamp location
+      swamp() {
+        this.currentLocation = "Swamp";
+        this.showText("You are in the Swamp. What would you like to do?");
+        this.showChoices([
+          { text: "Fight a Vampire", action: "fightVampire" },
+          { text: "Go back to Town", action: "town" }
+        ]);
+      }
+
+      // Fight Goblin
+      fightGoblin() {
+        this.fightMonster({ name: "Goblin", health: 30, attack: 8, reward: { exp: 15, gold: 15 } });
+      }
+
+      // Fight Vampire
+      fightVampire() {
+        this.fightMonster({ name: "Vampire", health: 100, attack: 20, reward: { exp: 50, gold: 60 } });
+      }
+
+      // Fight a monster
+      fightMonster(monster) {
+        this.showText(`You encountered a ${monster.name}! Fight!`);
+        const playerAttack = Math.max(0, this.player.attack - monster.attack);
+        this.player.health -= monster.attack;
         monster.health -= playerAttack;
-        let combatLog = `You deal ${playerAttack} damage to the ${monster.name}.\n`;
 
         if (monster.health <= 0) {
-          combatLog += `You defeated the ${monster.name}! You gain ${monster.reward.exp} EXP and ${monster.reward.gold} gold.`;
+          this.showText(`You defeated the ${monster.name}!`);
           this.player.exp += monster.reward.exp;
           this.player.gold += monster.reward.gold;
-          this.checkLevelUp();
-          this.currentMonster = null;
-          this.showText(combatLog);
-          this.showChoices([{ text: "Return to town", next: "town" }]);
-          return;
-        }
-
-        this.player.health -= Math.max(0, monsterAttack - this.player.defense);
-        combatLog += `${monster.name} hits you for ${monsterAttack} damage.\nYour health: ${this.player.health}`;
-
-        if (this.player.health <= 0) {
-          this.showText("You have been defeated. Game over.");
-          this.showChoices([]);
+        } else if (this.player.health <= 0) {
+          this.showText("You have been defeated!");
         } else {
-          this.showText(combatLog);
-          this.showChoices([
-            { text: "Attack again", action: "combat" },
-            { text: "Flee", action: "fleeBattle" }
-          ]);
+          this.showText(`The ${monster.name} has ${monster.health} health left.`);
         }
 
-        this.updateGoldDisplay();
-      },
-
-      fleeBattle() {
-        this.showText("You fled back to town.");
-        this.showChoices([{ text: "Return", next: "town" }]);
-      },
-
-      enterShop() {
-        this.showText("Welcome to the shop. What would you like to buy?");
-        this.showChoices([
-          { text: "Sword (+5 atk) – 30g", action: "buyItem", item: { name: "Sword", attack: 5, cost: 30 } },
-          { text: "Shield (+3 def) – 25g", action: "buyItem", item: { name: "Shield", defense: 3, cost: 25 } },
-          { text: "Health Potion (restore 50) – 20g", action: "buyItem", item: { name: "Health Potion", heal: 50, cost: 20 } },
-          { text: "Leave shop", next: "town" }
-        ]);
-      },
-
-      buyItem(choice) {
-        const item = choice.item;
-        if (this.player.gold >= item.cost) {
-          this.player.gold -= item.cost;
-          this.player.inventory.push(item);
-          if (item.attack) this.player.attack += item.attack;
-          if (item.defense) this.player.defense += item.defense;
-          if (item.heal) {
-            this.player.health = Math.min(this.player.maxHealth, this.player.health + item.heal);
-          }
-          this.showText(`You bought ${item.name}.`);
-        } else {
-          this.showText("Not enough gold.");
-        }
-        this.updateGoldDisplay();
-        this.enterShop();
-      },
-
-      checkLevelUp() {
-        while (this.player.exp >= this.player.expToLevel) {
-          this.player.exp -= this.player.expToLevel;
-          this.player.level++;
-          this.player.expToLevel = Math.floor(this.player.expToLevel * 1.5);
-          this.player.attack += 2;
-          this.player.defense += 1;
-          this.player.maxHealth += 20;
-          this.player.health = this.player.maxHealth;
-          this.player.skills.push("Power Strike");
-          this.showText(`You leveled up to level ${this.player.level}!\n+2 Attack, +1 Defense, +20 Health\nNew skill: Power Strike!`);
-        }
-      },
-
-      showInventory() {
-        const items = this.player.inventory.map(i => i.name).join(", ") || "Empty";
-        this.showText("Inventory:\n" + items);
-        this.showChoices([{ text: "Back", next: "town" }]);
-      },
-
-      showStats() {
-        const p = this.player;
-        this.showText(`Stats:
-Level: ${p.level}
-EXP: ${p.exp}/${p.expToLevel}
-Health: ${p.health}/${p.maxHealth}
-Attack: ${p.attack}
-Defense: ${p.defense}
-Gold: ${p.gold}
-Skills: ${p.skills.join(", ")}`);
-        this.showChoices([{ text: "Back", next: "town" }]);
-      },
-
-      showText(text) {
-        document.getElementById("gameText").textContent = text;
-      },
-
-      showChoices(choices) {
-        const container = document.getElementById("choices");
-        container.innerHTML = "";
-        choices.forEach(choice => {
-          const btn = document.createElement("button");
-          btn.textContent = choice.text;
-          btn.onclick = () => {
-            if (choice.next) this.goTo(choice.next);
-            else if (choice.action === "combat") this.combat();
-            else if (choice.action === "fleeBattle") this.fleeBattle();
-            else if (choice.action === "buyItem") this.buyItem(choice);
-            else if (choice.action === "showInventory") this.showInventory();
-            else if (choice.action === "showStats") this.showStats();
-          };
-          container.appendChild(btn);
-        });
-      },
-
-      updateGoldDisplay() {
-        document.getElementById("goldDisplay").textContent = this.player.gold;
+        this.showChoices([{ text: "Back to town", next: "town" }]);
       }
-    };
+    }
 
-    game.start();
+    // Initialize the game
+    const game = new Game();
+    game.town(); // Start the game in the town
   </script>
+
 </body>
 </html>
