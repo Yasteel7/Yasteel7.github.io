@@ -5,171 +5,814 @@
   <title>Text-Based RPG</title>
   <style>
     body {
-      background-color: #121212;
-      color: #f0f0f0;
-      font-family: 'Courier New', Courier, monospace;
+      background-color: #1a1a2e;
+      color: #e6e6e6;
+      font-family: 'Segoe UI', 'Arial', sans-serif;
       padding: 20px;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    #monster-info {
+      display: none;
+      margin-bottom: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      background-color: #16213e;
+      border: 1px solid #2a2a4a;
+    }
+    .monster-health-bar {
+      background: #2a2a4a;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+      height: 20px;
+      border: 1px solid #ff4444;
+    }
+    .monster-health-fill {
+      background: linear-gradient(90deg, #ff4444, #ff8888);
+      height: 100%;
+      width: 100%;
+      transition: width 0.3s ease;
+    }
+    .monster-status {
+      font-size: 0.9em;
+      color: #888;
+    }
+    h1 {
+      color: #00ff9d;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);
+      margin-bottom: 30px;
     }
     button {
       margin: 5px;
-      padding: 10px;
-      background-color: #333;
-      color: white;
-      border: none;
+      padding: 12px 20px;
+      background-color: #16213e;
+      color: #00ff9d;
+      border: 1px solid #00ff9d;
+      border-radius: 5px;
       cursor: pointer;
+      transition: all 0.3s ease;
+      font-weight: bold;
     }
     button:hover {
-      background-color: #555;
+      background-color: #00ff9d;
+      color: #16213e;
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0, 255, 157, 0.4);
     }
     #log {
       white-space: pre-wrap;
       margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #2a2a4a;
+      padding: 15px;
+      border-radius: 10px;
+      background-color: #16213e;
+    }
+    #stats {
+      background-color: #16213e;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      border: 1px solid #2a2a4a;
+    }
+    .health-bar {
+      background: #2a2a4a;
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 10px 0;
+      height: 25px;
+      border: 1px solid #00ff9d;
+    }
+    .health-fill {
+      background: linear-gradient(90deg, #00ff9d, #00b8ff);
+      height: 100%;
+      width: 100%;
+      transition: width 0.3s ease;
+    }
+    #menu {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin: 20px 0;
+    }
+    .quest-item {
+      background-color: #16213e;
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+      border: 1px solid #2a2a4a;
+    }
+    .progress-bar {
+      background: #2a2a4a;
+      height: 10px;
+      border-radius: 5px;
+      margin-top: 5px;
+    }
+    .progress-fill {
+      background: #00ff9d;
+      height: 100%;
+      border-radius: 5px;
+      transition: width 0.3s ease;
     }
   </style>
 </head>
 <body>
   <h1>Text RPG Adventure</h1>
   <div id="stats"></div>
-  <div id="menu">
-    <button onclick="goTown()">🏠 Town</button>
-    <button onclick="fight()">⚔️ Fight</button>
-    <button onclick="openShop()">🛒 Shop</button>
-    <button onclick="viewQuests()">📜 Quests</button>
-    <button onclick="openInventory()">🎒 Inventory</button>
-    <button onclick="goTavern()">🍻 Tavern</button>
+  <div class="health-bar"><div id="healthFill" class="health-fill"></div></div>
+  <div id="monster-info">
+    <h3 id="monster-name"></h3>
+    <div class="monster-health-bar"><div id="monsterHealthFill" class="monster-health-fill"></div></div>
+    <div id="monster-status" class="monster-status"></div>
   </div>
+  <div id="menu"></div>
   <div id="log"></div>
 
   <script>
     const player = {
       name: "Hero",
+      level: 1,
+      xp: 0,
       maxHp: 100,
       hp: 100,
+      maxMp: 50,
+      mp: 50,
       baseAttack: 10,
       attack: 10,
+      magicPower: 0,
+      critChance: 5,
       gold: 50,
+      class: "none", // none, warrior, mage, rogue
+      quests: [],
       inventory: [
-        { name: "Health Potion", type: "consumable", effect: 30 },
-        { name: "Wooden Sword", type: "weapon", attack: 5 },
-        { name: "Leather Armor", type: "armor", hp: 10 }
+        { name: "🧪 Health Potion", type: "consumable", effect: 30, description: "Restores 30 HP" },
+        { name: "🧪 Mana Potion", type: "consumable", effect: 20, description: "Restores 20 MP", restoreMp: true },
+        { name: "⚔️ Wooden Sword", type: "weapon", attack: 5, description: "A basic wooden sword. +5 Attack" },
+        { name: "🛡️ Leather Armor", type: "armor", hp: 10, description: "Basic leather protection. +10 HP" }
       ],
-      equipped: {
-        weapon: null,
-        armor: null
+      equipped: { weapon: null, armor: null },
+      spells: [],
+      skills: []
+    };
+
+    const spells = {
+      fireball: {
+        name: "🔥 Fireball",
+        damage: 20,
+        mpCost: 15,
+        description: "Launches a ball of fire dealing 20 magic damage",
+        levelRequired: 2
+      },
+      frostbolt: {
+        name: "❄️ Frostbolt",
+        damage: 15,
+        mpCost: 10,
+        description: "Fires a bolt of ice dealing 15 magic damage and slowing the enemy",
+        levelRequired: 3
+      },
+      heal: {
+        name: "💚 Heal",
+        healing: 25,
+        mpCost: 20,
+        description: "Restores 25 HP",
+        levelRequired: 4
       }
     };
 
-    function updateStats() {
-      document.getElementById("stats").innerText =
-        `${player.name} - HP: ${player.hp}/${player.maxHp} - ATK: ${player.attack} - Gold: ${player.gold}`;
+    const skillsList = {
+      warrior: [
+        {
+          id: "powerStrike",
+          name: "💥 Power Strike",
+          damage: 1.5, // multiplier
+          description: "A powerful strike dealing 150% weapon damage",
+          levelRequired: 2,
+          mpCost: 10
+        },
+        {
+          id: "shieldBlock",
+          name: "🛡️ Shield Block",
+          block: 0.5, // damage reduction
+          description: "Reduces incoming damage by 50% for one turn",
+          levelRequired: 3,
+          mpCost: 15,
+          duration: 1
+        }
+      ],
+      rogue: [
+        {
+          id: "backstab",
+          name: "🗡️ Backstab",
+          damage: 2.0,
+          description: "A sneaky attack dealing 200% weapon damage",
+          levelRequired: 2,
+          mpCost: 10
+        },
+        {
+          id: "poisonStrike",
+          name: "☠️ Poison Strike",
+          damage: 0.5,
+          dot: 10,
+          dotDuration: 3,
+          description: "Poisons the enemy dealing damage over time for 3 turns",
+          levelRequired: 3,
+          mpCost: 15
+        }
+      ],
+      mage: [
+        {
+          id: "arcaneBlast",
+          name: "✨ Arcane Blast",
+          damage: 1.8,
+          description: "A burst of arcane energy dealing 180% magic damage",
+          levelRequired: 2,
+          mpCost: 15,
+          isMagic: true
+        }
+      ]
+    };
+
+    const monsters = [
+      // Tier 1 (Beginner)
+      { name: "Goblin", hp: 30, attack: 8, gold: 10, xp: 15, tier: 1 },
+      { name: "Wolf", hp: 35, attack: 10, gold: 12, xp: 18, tier: 1 },
+      { name: "Bandit", hp: 40, attack: 9, gold: 15, xp: 20, tier: 1 },
+      
+      // Tier 2 (Intermediate)
+      { name: "Orc", hp: 50, attack: 12, gold: 20, xp: 25, tier: 2 },
+      { name: "Skeleton Warrior", hp: 45, attack: 14, gold: 22, xp: 28, tier: 2 },
+      { name: "Dark Elf", hp: 40, attack: 16, gold: 25, xp: 30, tier: 2 },
+      
+      // Tier 3 (Advanced)
+      { name: "Dark Knight", hp: 80, attack: 18, gold: 40, xp: 45, tier: 3 },
+      { name: "Necromancer", hp: 60, attack: 22, gold: 45, xp: 50, tier: 3 },
+      { name: "Troll", hp: 100, attack: 20, gold: 50, xp: 55, tier: 3 },
+      
+      // Tier 4 (Elite)
+      { name: "Young Dragon", hp: 150, attack: 25, gold: 100, xp: 100, tier: 4 },
+      { name: "Demon Lord", hp: 180, attack: 28, gold: 120, xp: 110, tier: 4 },
+      { name: "Ancient Golem", hp: 200, attack: 22, gold: 130, xp: 120, tier: 4 }
+    ];
+
+    const finalBoss = {
+      name: "🐉 Ancalagon the Black Dragon",
+      hp: 500,
+      attack: 45,
+      gold: 1000,
+      xp: 500,
+      description: "The legendary black dragon whose very presence darkens the sky.",
+      tier: 5,
+      specialAttacks: [
+        { name: "Dragon's Breath", damage: 60 },
+        { name: "Tail Swipe", damage: 35 },
+        { name: "Wing Gust", damage: 30 }
+      ]
+    };
+
+    const availableQuests = [
+      // Beginner Quests
+      { 
+        id: 1,
+        name: "Goblin Slayer",
+        description: "Defeat 5 Goblins",
+        target: "Goblin",
+        required: 5,
+        progress: 0,
+        reward: { gold: 100, xp: 100 }
+      },
+      {
+        id: 2,
+        name: "Wolf Pack",
+        description: "Defeat 4 Wolves",
+        target: "Wolf",
+        required: 4,
+        progress: 0,
+        reward: { gold: 120, xp: 120 }
+      },
+      // Intermediate Quests
+      {
+        id: 3,
+        name: "Orc Hunter",
+        description: "Defeat 3 Orcs",
+        target: "Orc",
+        required: 3,
+        levelRequired: 5,
+        progress: 0,
+        reward: { gold: 150, xp: 150 }
+      },
+      {
+        id: 4,
+        name: "Dark Elf Assassin",
+        description: "Defeat 3 Dark Elves",
+        target: "Dark Elf",
+        required: 3,
+        levelRequired: 5,
+        progress: 0,
+        reward: { gold: 180, xp: 180 }
+      },
+      // Advanced Quests
+      {
+        id: 5,
+        name: "Knight Slayer",
+        description: "Defeat 2 Dark Knights",
+        target: "Dark Knight",
+        required: 2,
+        levelRequired: 10,
+        progress: 0,
+        reward: { gold: 300, xp: 300 }
+      },
+      // Class-specific Quests
+      {
+        id: 6,
+        name: "Warrior's Trial",
+        description: "Defeat a Troll using Power Strike",
+        target: "Troll",
+        required: 1,
+        levelRequired: 10,
+        classRequired: "warrior",
+        progress: 0,
+        reward: { gold: 400, xp: 400, skill: "shieldBlock" }
+      },
+      {
+        id: 7,
+        name: "Mage's Trial",
+        description: "Defeat a Necromancer using Fireball",
+        target: "Necromancer",
+        required: 1,
+        levelRequired: 10,
+        classRequired: "mage",
+        progress: 0,
+        reward: { gold: 400, xp: 400, spell: "frostbolt" }
+      },
+      {
+        id: 8,
+        name: "Rogue's Trial",
+        description: "Defeat a Dark Elf using Backstab",
+        target: "Dark Elf",
+        required: 1,
+        levelRequired: 10,
+        classRequired: "rogue",
+        progress: 0,
+        reward: { gold: 400, xp: 400, skill: "poison" }
+      },
+      // Elite Quests
+      {
+        id: 9,
+        name: "Dragon Hunter",
+        description: "Defeat 2 Young Dragons",
+        target: "Young Dragon",
+        required: 2,
+        levelRequired: 15,
+        progress: 0,
+        reward: { gold: 800, xp: 800 }
+      },
+      // Final Quest
+      {
+        id: 10,
+        name: "Legend of the Black Dragon",
+        description: "Defeat Ancalagon the Black Dragon",
+        target: "🐉 Ancalagon the Black Dragon",
+        required: 1,
+        levelRequired: 20,
+        progress: 0,
+        reward: { gold: 5000, xp: 2000, victory: true }
+      }
+    ];
+
+    const shopItems = [
+      // Warrior Equipment
+      { name: "🗡️ Iron Sword", type: "weapon", attack: 10, class: "warrior", cost: 40, 
+        description: "A basic iron sword. +10 Attack" },
+      { name: "⚔️ Steel Sword", type: "weapon", attack: 15, class: "warrior", cost: 80,
+        description: "A sturdy steel sword. +15 Attack" },
+      { name: "🗡️ Mythril Blade", type: "weapon", attack: 25, class: "warrior", cost: 150,
+        description: "A magical mythril blade. +25 Attack" },
+      { name: "🛡️ Iron Armor", type: "armor", hp: 20, class: "warrior", cost: 50,
+        description: "Basic iron armor. +20 HP" },
+      { name: "🛡️ Steel Armor", type: "armor", hp: 30, class: "warrior", cost: 100,
+        description: "Sturdy steel armor. +30 HP" },
+      { name: "🛡️ Mythril Armor", type: "armor", hp: 50, class: "warrior", cost: 200,
+        description: "Magical mythril armor. +50 HP" },
+      
+      // Mage Equipment
+      { name: "🔮 Apprentice Staff", type: "weapon", attack: 5, magicPower: 10, class: "mage", cost: 40,
+        description: "A basic magic staff. +5 Attack, +10 Magic Power" },
+      { name: "🔮 Mystic Wand", type: "weapon", attack: 8, magicPower: 15, class: "mage", cost: 80,
+        description: "An enhanced magic wand. +8 Attack, +15 Magic Power" },
+      { name: "🔮 Archmage Staff", type: "weapon", attack: 10, magicPower: 25, class: "mage", cost: 150,
+        description: "A powerful magic staff. +10 Attack, +25 Magic Power" },
+      { name: "👘 Apprentice Robes", type: "armor", hp: 10, magicPower: 5, class: "mage", cost: 50,
+        description: "Basic mage robes. +10 HP, +5 Magic Power" },
+      { name: "👘 Mystic Robes", type: "armor", hp: 15, magicPower: 10, class: "mage", cost: 100,
+        description: "Enhanced mage robes. +15 HP, +10 Magic Power" },
+      { name: "👘 Archmage Robes", type: "armor", hp: 20, magicPower: 20, class: "mage", cost: 200,
+        description: "Powerful mage robes. +20 HP, +20 Magic Power" },
+
+      // Rogue Equipment
+      { name: "🗡️ Steel Dagger", type: "weapon", attack: 8, critChance: 10, class: "rogue", cost: 40,
+        description: "A sharp dagger. +8 Attack, +10% Crit Chance" },
+      { name: "🗡️ Shadow Blade", type: "weapon", attack: 12, critChance: 15, class: "rogue", cost: 80,
+        description: "A deadly blade. +12 Attack, +15% Crit Chance" },
+      { name: "🗡️ Assassin's Edge", type: "weapon", attack: 18, critChance: 25, class: "rogue", cost: 150,
+        description: "A legendary dagger. +18 Attack, +25% Crit Chance" },
+      { name: "🥋 Leather Vest", type: "armor", hp: 15, critChance: 5, class: "rogue", cost: 50,
+        description: "Light leather armor. +15 HP, +5% Crit Chance" },
+      { name: "🥋 Shadow Vest", type: "armor", hp: 20, critChance: 10, class: "rogue", cost: 100,
+        description: "Enhanced leather armor. +20 HP, +10% Crit Chance" },
+      { name: "� Assassin's Garb", type: "armor", hp: 25, critChance: 15, class: "rogue", cost: 200,
+        description: "Legendary armor. +25 HP, +15% Crit Chance" },
+
+      // Consumables
+      { name: "�🧪 Health Potion", type: "consumable", effect: 30, cost: 10,
+        description: "Restores 30 HP" },
+      { name: "🧪 Greater Health Potion", type: "consumable", effect: 60, cost: 25,
+        description: "Restores 60 HP" },
+      { name: "🧪 Mana Potion", type: "consumable", effect: 20, cost: 15, restoreMp: true,
+        description: "Restores 20 MP" },
+      { name: "🧪 Greater Mana Potion", type: "consumable", effect: 40, cost: 30, restoreMp: true,
+        description: "Restores 40 MP" }
+    ];
+
+    function renderStats() {
+      let stats = `${player.name} (Lv ${player.level} ${player.class.charAt(0).toUpperCase() + player.class.slice(1)})`;
+      stats += `\nHP: ${player.hp}/${player.maxHp} - MP: ${player.mp}/${player.maxMp}`;
+      stats += `\nATK: ${player.attack} - Gold: ${player.gold} - XP: ${player.xp}`;
+      
+      if (player.magicPower > 0) {
+        stats += ` - Magic Power: ${player.magicPower}`;
+      }
+      if (player.critChance > 0) {
+        stats += ` - Crit Chance: ${player.critChance}%`;
+      }
+      
+      document.getElementById("stats").innerText = stats;
+      const hpPercent = (player.hp / player.maxHp) * 100;
+      document.getElementById("healthFill").style.width = hpPercent + "%";
     }
 
-    function log(message) {
-      document.getElementById("log").innerText = message;
+    function processMonsterDamage(monster, message) {
+      let logMsg = message + "\n";
+      
+      // Apply poison damage if active
+      if (monster.effects.poison > 0) {
+        const poisonDamage = 10;
+        monster.hp -= poisonDamage;
+        logMsg += `☠️ Poison deals ${poisonDamage} damage!\n`;
+        monster.effects.poison--;
+      }
+      
+      // Update monster display
+      updateMonsterDisplay(monster);
+
+      let monsterDmg = monster.attack;
+
+      // Apply defensive effects
+      if (player.effects && player.effects.blockDuration > 0) {
+        monsterDmg *= (1 - player.effects.blockAmount);
+        player.effects.blockDuration--;
+        if (player.effects.blockDuration === 0) {
+          delete player.effects.blockAmount;
+        }
+      }
+
+      player.hp -= Math.floor(monsterDmg);
+      logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
+
+      if (monster.hp <= 0) {
+        player.gold += monster.gold;
+        player.xp += monster.xp;
+        logMsg += `You defeated the ${monster.name}!\nGold +${monster.gold}, XP +${monster.xp}`;
+        updateQuestProgress(monster.name);
+        checkLevelUp();
+        renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
+      } else if (player.hp <= 0) {
+        logMsg += "You have been defeated...";
+        renderMenu([{ label: "🔁 Retry", action: goTown }]);
+      } else {
+        showCombatMenu(monster, logMsg);
+      }
+
+      renderLog(logMsg);
+      renderStats();
+    }
+
+    function renderLog(message, append = true) {
+      const log = document.getElementById("log");
+      log.innerText = append ? message + "\n\n" + log.innerText : message;
+    }
+
+    function renderMenu(buttons = []) {
+      const menu = document.getElementById("menu");
+      menu.innerHTML = "";
+      buttons.forEach(btn => {
+        const b = document.createElement("button");
+        b.innerText = btn.label;
+        b.onclick = btn.action;
+        menu.appendChild(b);
+      });
     }
 
     function goTown() {
-      log("You are in the town.");
-      updateStats();
-      document.getElementById("menu").innerHTML = `
-        <button onclick="goTown()">🏠 Town</button>
-        <button onclick="fight()">⚔️ Fight</button>
-        <button onclick="openShop()">🛒 Shop</button>
-        <button onclick="viewQuests()">📜 Quests</button>
-        <button onclick="openInventory()">🎒 Inventory</button>
-        <button onclick="goTavern()">🍻 Tavern</button>
-      `;
+      renderLog("Welcome to Town Square");
+      renderStats();
+      renderMenu([
+        { label: "⚔️ Fight", action: fight },
+        { label: "🛒 Shop", action: openShop },
+        { label: "📜 Quests", action: viewQuests },
+        { label: "🎒 Inventory", action: openInventory },
+        { label: "🍻 Tavern", action: goTavern },
+        { label: "⚡ Change Class", action: selectClass },
+        { label: "💾 Save Game", action: () => { saveGame(); goTown(); } },
+        { label: "📂 Load Game", action: () => { loadGame(); goTown(); } }
+      ]);
     }
 
     function fight() {
-      const monster = { name: "Goblin", hp: 30, attack: 8 };
-      log(`You encountered a ${monster.name}!\nClick 'Fight' again to attack.`);
-      
-      document.getElementById("menu").innerHTML = `
-        <button onclick="attack('${monster.name}', ${monster.hp}, ${monster.attack})">⚔️ Attack</button>
-        <button onclick="goTown()">🏃 Flee</button>
-      `;
-    }
+      // Determine available monster tiers based on player level
+      const availableTiers = [1];
+      if (player.level >= 5) availableTiers.push(2);
+      if (player.level >= 10) availableTiers.push(3);
+      if (player.level >= 15) availableTiers.push(4);
 
-    function attack(name, hp, attackPower) {
-      const monster = { name, hp, attack: attackPower };
-
-      monster.hp -= player.attack;
-      player.hp -= monster.attack;
-
-      if (monster.hp <= 0) {
-        player.gold += 20;
-        log(`You defeated the ${monster.name}!\nGold earned: 20`);
-        document.getElementById("menu").innerHTML = `
-          <button onclick="goTown()">🏠 Return to Town</button>
-        `;
-      } else if (player.hp <= 0) {
-        log("You have been defeated...");
-        document.getElementById("menu").innerHTML = `
-          <button onclick="goTown()">🔁 Retry</button>
-        `;
-      } else {
-        log(`You hit the ${monster.name}!\nIt has ${monster.hp} HP left.\nThe ${monster.name} hits you!\nYou have ${player.hp} HP.`);
-        document.getElementById("menu").innerHTML = `
-          <button onclick="attack('${monster.name}', ${monster.hp}, ${monster.attack})">⚔️ Attack</button>
-          <button onclick="goTown()">🏃 Flee</button>
-        `;
+      // 5% chance to encounter Ancalagon if player is level 20+
+      if (player.level >= 20 && Math.random() < 0.05) {
+        const boss = { ...finalBoss, effects: { poison: 0 } };
+        showCombatMenu(boss, "⚠️ The sky darkens... " + boss.description);
+        return;
       }
 
-      updateStats();
+      // Select monster from appropriate tier
+      const tier = availableTiers[Math.floor(Math.random() * availableTiers.length)];
+      const tierMonsters = monsters.filter(m => m.tier === tier);
+      const monster = { 
+        ...tierMonsters[Math.floor(Math.random() * tierMonsters.length)],
+        effects: { poison: 0 }
+      };
+      
+      showCombatMenu(monster, "You encountered a " + monster.name + "!");
     }
 
-    function openShop() {
-      const shopItems = [
-        { name: "Iron Sword", type: "weapon", attack: 10, cost: 40 },
-        { name: "Iron Armor", type: "armor", hp: 20, cost: 50 },
-        { name: "Health Potion", type: "consumable", effect: 30, cost: 10 }
-      ];
-      window.shopItems = shopItems;
+    function updateMonsterDisplay(monster) {
+      const monsterInfo = document.getElementById("monster-info");
+      const monsterName = document.getElementById("monster-name");
+      const monsterHealthFill = document.getElementById("monsterHealthFill");
+      const monsterStatus = document.getElementById("monster-status");
 
-      let shopHtml = "<h3>Shop</h3>";
-      shopItems.forEach((item, i) => {
-        shopHtml += `
-          <div>
-            ${item.name} - ${item.cost} Gold 
-            <button onclick="buyItem(${i})">Buy</button>
+      if (monster && monster.hp > 0) {
+        monsterInfo.style.display = "block";
+        monsterName.innerText = monster.name;
+        
+        // Calculate health percentage
+        const baseMonster = monster.name === finalBoss.name ? finalBoss : 
+          monsters.find(m => m.name === monster.name);
+        const maxHp = baseMonster.hp;
+        const hpPercent = (monster.hp / maxHp) * 100;
+        monsterHealthFill.style.width = hpPercent + "%";
+
+        // Show status effects
+        let status = `HP: ${monster.hp}/${maxHp}`;
+        if (monster.effects.poison > 0) {
+          status += " | 🤢 Poisoned";
+        }
+        monsterStatus.innerText = status;
+      } else {
+        monsterInfo.style.display = "none";
+      }
+    }
+
+    function showCombatMenu(monster, message) {
+      updateMonsterDisplay(monster);
+      
+      const buttons = [
+        { label: "⚔️ Attack", action: () => attack(monster) },
+        { label: "🎒 Inventory", action: () => showCombatInventory(monster) }
+      ];
+
+      // Add skills button if player has skills
+      if (player.skills.length > 0) {
+        buttons.push({ label: "💫 Skills", action: () => showSkills(monster) });
+      }
+
+      // Add spells button if player has spells
+      if (player.spells.length > 0) {
+        buttons.push({ label: "✨ Spells", action: () => showSpells(monster) });
+      }
+
+      buttons.push({ label: "🏃 Flee", action: goTown });
+
+      renderLog(message);
+      renderMenu(buttons);
+    }
+
+    function showCombatInventory(monster) {
+      let html = "<h3>🎒 Combat Inventory</h3>";
+      player.inventory.forEach((item, i) => {
+        if (item.type === "consumable") {
+          html += `
+            <div class="quest-item">
+              ${item.name} - ${item.description}<br>
+              <button onclick="useCombatItem(${i}, '${monster.name}')">Use</button>
+            </div>`;
+        }
+      });
+      html += `<br><button onclick="showCombatMenu(${JSON.stringify(monster)}, 'Combat continues...')">Back to Combat</button>`;
+      document.getElementById("log").innerHTML = html;
+    }
+
+    function showSkills(monster) {
+      let html = "<h3>💫 Skills</h3>";
+      player.skills.forEach((skill, i) => {
+        const canUse = player.mp >= skill.mpCost;
+        html += `
+          <div class="quest-item">
+            ${skill.name} - ${skill.description}<br>
+            MP Cost: ${skill.mpCost}<br>
+            <button onclick="useSkill(${i}, '${monster.name}', ${monster.hp}, ${JSON.stringify(monster.effects)})" ${canUse ? '' : 'disabled'}>
+              Use Skill ${canUse ? '' : '(Not enough MP)'}
+            </button>
           </div>`;
       });
-      shopHtml += `<br><button onclick="goTown()">Return to Town</button>`;
-      document.getElementById("log").innerHTML = shopHtml;
+      html += `<br><button onclick="returnToCombat('${monster.name}', ${monster.hp}, ${JSON.stringify(monster.effects)})">Back to Combat</button>`;
+      document.getElementById("log").innerHTML = html;
     }
 
-    function buyItem(index) {
-      const item = window.shopItems[index];
-      if (player.gold >= item.cost) {
-        player.gold -= item.cost;
-        player.inventory.push(item);
-        log(`You bought ${item.name}.`);
-        updateStats();
-      } else {
-        log("Not enough gold.");
+    function showSpells(monster) {
+      let html = "<h3>✨ Spells</h3>";
+      player.spells.forEach((spell, i) => {
+        const canCast = player.mp >= spell.mpCost;
+        html += `
+          <div class="quest-item">
+            ${spell.name} - ${spell.description}<br>
+            MP Cost: ${spell.mpCost}<br>
+            <button onclick="castSpell(${i}, ${JSON.stringify(monster)})" ${canCast ? '' : 'disabled'}>
+              Cast Spell ${canCast ? '' : '(Not enough MP)'}
+            </button>
+          </div>`;
+      });
+      html += `<br><button onclick="showCombatMenu(${JSON.stringify(monster)}, 'Combat continues...')">Back to Combat</button>`;
+      document.getElementById("log").innerHTML = html;
+    }
+
+    function useCombatItem(index, monsterName) {
+      const item = player.inventory[index];
+      if (item.type === "consumable") {
+        if (item.restoreMp) {
+          player.mp = Math.min(player.maxMp, player.mp + item.effect);
+          renderLog(`Used ${item.name}. Restored ${item.effect} MP.`);
+        } else {
+          player.hp = Math.min(player.maxHp, player.hp + item.effect);
+          renderLog(`Used ${item.name}. Healed ${item.effect} HP.`);
+        }
+        player.inventory.splice(index, 1);
+        renderStats();
+        
+        // Reconstruct monster object and return to combat
+        const monster = monsters.find(m => m.name === monsterName);
+        if (monster) {
+          showCombatMenu(monster, "Combat continues...");
+        }
       }
     }
 
-    function viewQuests() {
-      log("Quests coming soon!");
+    function castSpell(index, monster) {
+      const spell = player.spells[index];
+      if (player.mp >= spell.mpCost) {
+        player.mp -= spell.mpCost;
+        let damage = spell.damage || 0;
+        if (damage > 0) {
+          damage += player.magicPower;
+          monster.hp -= damage;
+          processMonsterDamage(monster, `You cast ${spell.name} dealing ${damage} magic damage!`);
+        } else if (spell.healing) {
+          const healing = spell.healing + Math.floor(player.magicPower / 2);
+          player.hp = Math.min(player.maxHp, player.hp + healing);
+          showCombatMenu(monster, `You cast ${spell.name} healing ${healing} HP!`);
+        }
+      }
+    }
+
+    function returnToCombat(monsterName, monsterHp, monsterEffects) {
+      const baseMonster = monsterName === finalBoss.name ? finalBoss : 
+        monsters.find(m => m.name === monsterName);
+      const monster = {
+        ...baseMonster,
+        hp: monsterHp,
+        effects: monsterEffects
+      };
+      showCombatMenu(monster, "Combat continues...");
+    }
+
+    function useSkill(index, monsterName, monsterHp, monsterEffects) {
+      const skill = player.skills[index];
+      const baseMonster = monsterName === finalBoss.name ? finalBoss : 
+        monsters.find(m => m.name === monsterName);
+      const monster = {
+        ...baseMonster,
+        hp: monsterHp,
+        effects: monsterEffects
+      };
+      
+      if (player.mp < skill.mpCost) {
+        showCombatMenu(monster, "Not enough MP to use " + skill.name);
+        return;
+      }
+
+      player.mp -= skill.mpCost;
+      let damage = 0;
+      let message = "";
+
+      // Calculate damage based on skill type
+      if (skill.isMagic) {
+        damage = Math.floor((player.magicPower + player.attack) * skill.damage);
+      } else {
+        damage = Math.floor(player.attack * skill.damage);
+      }
+
+      // Apply critical hits for rogues
+      if (player.class === "rogue") {
+        const critRoll = Math.random() * 100;
+        if (critRoll <= player.critChance) {
+          damage *= 2;
+          message += "Critical hit! ";
+        }
+      }
+
+      // Apply skill effects
+      if (skill.id === "poisonStrike") {
+        monster.effects.poison = skill.dotDuration;
+        message += `Applied poison for ${skill.dotDuration} turns! `;
+      } else if (skill.id === "shieldBlock") {
+        player.effects = player.effects || {};
+        player.effects.blockDuration = skill.duration;
+        player.effects.blockAmount = skill.block;
+        message += "Defensive stance activated! ";
+        showCombatMenu(monster, `${message}Damage reduced by ${skill.block * 100}% for ${skill.duration} turn(s)!`);
+        return;
+      }
+
+      monster.hp -= damage;
+      processMonsterDamage(monster, `${message}You used ${skill.name} dealing ${damage} damage!`);
+    }
+
+    function attack(monster) {
+      const critRoll = Math.random() * 100;
+      const crit = critRoll <= player.critChance;
+      const miss = Math.random() < 0.1;
+      const playerDmg = miss ? 0 : crit ? player.attack * 2 : player.attack;
+      let monsterDmg = monster.attack;
+
+      monster.hp -= playerDmg;
+      player.hp -= monsterDmg;
+
+      let logMsg = `You ${miss ? "missed" : crit ? "critically hit" : "hit"} the ${monster.name} for ${playerDmg} damage.\n`;
+      logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
+
+      if (monster.hp <= 0) {
+        player.gold += monster.gold;
+        player.xp += monster.xp;
+        logMsg += `You defeated the ${monster.name}!\nGold +${monster.gold}, XP +${monster.xp}`;
+        updateQuestProgress(monster.name);
+        checkLevelUp();
+        renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
+      } else if (player.hp <= 0) {
+        logMsg += "You have been defeated...";
+        renderMenu([{ label: "🔁 Retry", action: goTown }]);
+      } else {
+        showCombatMenu(monster, logMsg);
+      }
+
+      renderLog(logMsg);
+      renderStats();
+    }
+
+    function checkLevelUp() {
+      const xpNeeded = player.level * 50;
+      if (player.xp >= xpNeeded) {
+        player.level++;
+        player.xp = 0;
+        player.maxHp += 20;
+        player.baseAttack += 5;
+        player.hp = player.maxHp;
+        player.attack = player.baseAttack + (player.equipped.weapon?.attack || 0);
+        renderLog(`🎉 You leveled up to Lv ${player.level}!\n+20 Max HP, +5 Base ATK`, true);
+      }
     }
 
     function openInventory() {
-      let invHtml = "<h3>Inventory</h3>";
+      let html = "<h3>Inventory</h3>";
       player.inventory.forEach((item, i) => {
         if (item.type === "consumable") {
-          invHtml += `
-            <div>${item.name} (${item.type}) 
-            <button onclick="useItem(${i})">Use</button></div>`;
+          html += `${item.name} - <button onclick="useItem(${i})">Use</button><br>`;
         } else {
-          invHtml += `
-            <div>${item.name} (${item.type}) 
-            <button onclick="equipItem(${i})">Equip</button></div>`;
+          html += `${item.name} - <button onclick="equipItem(${i})">Equip</button><br>`;
         }
       });
-      invHtml += `<br><button onclick="goTown()">Return to Town</button>`;
-      document.getElementById("log").innerHTML = invHtml;
+      html += `<br><button onclick="goTown()">Return to Town</button>`;
+      document.getElementById("log").innerHTML = html;
     }
 
     function useItem(index) {
@@ -177,49 +820,172 @@
       if (item.type === "consumable") {
         player.hp = Math.min(player.maxHp, player.hp + item.effect);
         player.inventory.splice(index, 1);
-        log(`Used ${item.name}. Healed for ${item.effect} HP.`);
-        updateStats();
-      } else {
-        log("This item is not usable.");
+        renderLog(`Used ${item.name}. Healed ${item.effect} HP.`);
+        renderStats();
       }
     }
 
     function equipItem(index) {
       const item = player.inventory[index];
       if (item.type === "weapon") {
-        if (player.equipped.weapon) {
-          player.attack -= player.equipped.weapon.attack;
-        }
+        if (player.equipped.weapon) player.attack -= player.equipped.weapon.attack;
         player.equipped.weapon = item;
         player.attack = player.baseAttack + item.attack;
-        log(`Equipped ${item.name}.`);
+        renderLog(`Equipped ${item.name}.`);
       } else if (item.type === "armor") {
-        if (player.equipped.armor) {
-          player.maxHp -= player.equipped.armor.hp;
-        }
+        if (player.equipped.armor) player.maxHp -= player.equipped.armor.hp;
         player.equipped.armor = item;
         player.maxHp += item.hp;
         if (player.hp > player.maxHp) player.hp = player.maxHp;
-        log(`Equipped ${item.name}.`);
-      } else {
-        log("You can't equip that.");
+        renderLog(`Equipped ${item.name}.`);
       }
-      updateStats();
+      renderStats();
+    }
+
+    function openShop() {
+      let html = "<h3>Shop</h3>";
+      shopItems.forEach((item, i) => {
+        html += `${item.name} - ${item.cost} Gold <button onclick="buyItem(${i})">Buy</button><br>`;
+      });
+      html += `<br><button onclick="goTown()">Return to Town</button>`;
+      document.getElementById("log").innerHTML = html;
+    }
+
+    function buyItem(index) {
+      const item = shopItems[index];
+      if (player.gold >= item.cost) {
+        player.gold -= item.cost;
+        player.inventory.push(item);
+        renderLog(`You bought ${item.name}.`);
+        renderStats();
+      } else {
+        renderLog("Not enough gold.");
+      }
+    }
+
+    function viewQuests() {
+      let html = "<h3>📜 Available Quests</h3>";
+      availableQuests.forEach(quest => {
+        const activeQuest = player.quests.find(q => q.id === quest.id);
+        if (!activeQuest) {
+          html += `
+            <div class="quest-item">
+              <strong>${quest.name}</strong><br>
+              ${quest.description}<br>
+              Reward: ${quest.reward.gold} Gold, ${quest.reward.xp} XP<br>
+              <button onclick="acceptQuest(${quest.id})">Accept Quest</button>
+            </div>`;
+        }
+      });
+      
+      if (player.quests.length > 0) {
+        html += "<h3>Active Quests</h3>";
+        player.quests.forEach(quest => {
+          const questTemplate = availableQuests.find(q => q.id === quest.id);
+          const progress = (quest.progress / questTemplate.required) * 100;
+          html += `
+            <div class="quest-item">
+              <strong>${questTemplate.name}</strong><br>
+              Progress: ${quest.progress}/${questTemplate.required}<br>
+              <div class="progress-bar">
+                <div class="progress-fill" style="width: ${progress}%"></div>
+              </div>
+            </div>`;
+        });
+      }
+      html += `<br><button onclick="goTown()">Return to Town</button>`;
+      document.getElementById("log").innerHTML = html;
+    }
+
+    function acceptQuest(questId) {
+      const quest = availableQuests.find(q => q.id === questId);
+      if (quest) {
+        player.quests.push({
+          id: quest.id,
+          progress: 0
+        });
+        renderLog(`Accepted quest: ${quest.name}`);
+        viewQuests();
+      }
+    }
+
+    function showVictoryScreen() {
+      document.getElementById("log").innerHTML = `
+        <div style="text-align: center; padding: 20px;">
+          <h1 style="color: #00ff9d; text-shadow: 0 0 10px rgba(0, 255, 157, 0.5);">
+            🎉 Victory! 🎉
+          </h1>
+          <p>You have defeated Ancalagon the Black Dragon and become a legend!</p>
+          <p>Final Stats:</p>
+          <p>Level ${player.level} ${player.class.charAt(0).toUpperCase() + player.class.slice(1)}</p>
+          <p>Gold: ${player.gold}</p>
+          <p>Thank you for playing!</p>
+          <button onclick="startNewGame()">Start New Game</button>
+        </div>
+      `;
+      document.getElementById("menu").innerHTML = "";
+    }
+
+    function startNewGame() {
+      localStorage.removeItem("rpgSave");
+      location.reload();
+    }
+
+    function updateQuestProgress(monsterName) {
+      player.quests.forEach((quest, index) => {
+        const questTemplate = availableQuests.find(q => q.id === quest.id);
+        if (questTemplate.target === monsterName) {
+          quest.progress++;
+          if (quest.progress >= questTemplate.required) {
+            // Complete quest
+            player.gold += questTemplate.reward.gold;
+            player.xp += questTemplate.reward.xp;
+            
+            // Handle special rewards
+            if (questTemplate.reward.skill) {
+              if (questTemplate.reward.skill === "shieldBlock") {
+                player.skills.push(skills.warrior.shieldBlock);
+              } else if (questTemplate.reward.skill === "poison") {
+                player.skills.push(skills.rogue.poison);
+              }
+            }
+            if (questTemplate.reward.spell) {
+              if (questTemplate.reward.spell === "frostbolt") {
+                player.spells.push(spells.frostbolt);
+              }
+            }
+            
+            player.quests.splice(index, 1);
+            let message = `🎉 Quest Complete: ${questTemplate.name}!\nReceived: ${questTemplate.reward.gold} Gold, ${questTemplate.reward.xp} XP`;
+            
+            if (questTemplate.reward.skill || questTemplate.reward.spell) {
+              message += "\nNew ability unlocked!";
+            }
+
+            if (questTemplate.reward.victory) {
+              showVictoryScreen();
+            } else {
+              renderLog(message);
+            }
+            
+            checkLevelUp();
+          }
+        }
+      });
     }
 
     function goTavern() {
-      // Show Tavern options
       const healCost = 20;
       if (player.hp < player.maxHp) {
         document.getElementById("log").innerHTML = `
-          <h3>Welcome to the Tavern</h3>
-          <p>Do you want to heal for ${healCost} gold?</p>
+          <h3>🍻 Welcome to the Tavern</h3>
+          <p>Heal for ${healCost} gold?</p>
           <button onclick="healAtTavern()">Heal</button>
           <button onclick="goTown()">Leave Tavern</button>
         `;
       } else {
         document.getElementById("log").innerHTML = `
-          <h3>Welcome to the Tavern</h3>
+          <h3>🍻 Welcome to the Tavern</h3>
           <p>You are already at full health!</p>
           <button onclick="goTown()">Leave Tavern</button>
         `;
@@ -231,19 +997,105 @@
       if (player.gold >= healCost) {
         player.hp = player.maxHp;
         player.gold -= healCost;
-        log(`You have been healed at the tavern! Cost: ${healCost} Gold.`);
-        updateStats();
-        document.getElementById("menu").innerHTML = `
-          <button onclick="goTown()">🏠 Return to Town</button>
-        `;
+        renderLog(`You have been healed! Cost: ${healCost} Gold.`);
+        renderStats();
+        renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
       } else {
-        log("You don't have enough gold to heal.");
-        updateStats();
+        renderLog("Not enough gold to heal.");
       }
     }
 
+    function saveGame() {
+      localStorage.setItem("rpgSave", JSON.stringify(player));
+      renderLog("💾 Game saved.");
+    }
+
+    function loadGame() {
+      const data = localStorage.getItem("rpgSave");
+      if (data) {
+        Object.assign(player, JSON.parse(data));
+        renderLog("📂 Game loaded.");
+        renderStats();
+        goTown(); // Go to town after loading
+        return true;
+      }
+      return false;
+    }
+
+    function selectClass() {
+      let html = "<h2>Choose Your Class</h2>";
+      const classes = [
+        { id: "warrior", name: "⚔️ Warrior", description: "Strong and durable. Specializes in weapons and defensive skills." },
+        { id: "mage", name: "🔮 Mage", description: "Master of magic. Can learn powerful spells and use magical staves." },
+        { id: "rogue", name: "🗡️ Rogue", description: "Quick and deadly. High critical chance and poison abilities." }
+      ];
+
+      classes.forEach(c => {
+        html += `
+          <div class="quest-item">
+            <strong>${c.name}</strong><br>
+            ${c.description}<br>
+            <button onclick="chooseClass('${c.id}')">Select ${c.name}</button>
+          </div>`;
+      });
+      document.getElementById("log").innerHTML = html;
+      document.getElementById("menu").innerHTML = "";
+    }
+
+    function chooseClass(classId) {
+      player.class = classId;
+      
+      // Give starting equipment based on class
+      // Reset player stats
+      player.maxHp = 100;
+      player.hp = 100;
+      player.maxMp = 50;
+      player.mp = 50;
+      player.baseAttack = 10;
+      player.attack = 10;
+      player.magicPower = 0;
+      player.critChance = 5;
+      player.skills = [];
+      player.spells = [];
+      player.inventory = [
+        { name: "🧪 Health Potion", type: "consumable", effect: 30, description: "Restores 30 HP" },
+        { name: "🧪 Mana Potion", type: "consumable", effect: 20, description: "Restores 20 MP", restoreMp: true }
+      ];
+      player.equipped = { weapon: null, armor: null };
+
+      if (classId === "warrior") {
+        player.maxHp += 50; // Warriors have more HP
+        player.hp = player.maxHp;
+        player.baseAttack += 5;
+        player.attack += 5;
+        player.inventory.push(
+          { name: "⚔️ Training Sword", type: "weapon", attack: 8, class: "warrior", description: "A basic training sword. +8 Attack" }
+        );
+        player.skills.push(skillsList.warrior[0]); // Start with Power Strike
+      } else if (classId === "mage") {
+        player.maxMp += 50; // Mages have more MP
+        player.mp = player.maxMp;
+        player.magicPower = 10;
+        player.inventory.push(
+          { name: "🔮 Training Staff", type: "weapon", attack: 3, magicPower: 8, class: "mage", description: "A basic magic staff. +3 Attack, +8 Magic Power" }
+        );
+        player.spells.push(spells.fireball);
+      } else if (classId === "rogue") {
+        player.critChance += 10; // Rogues have higher crit chance
+        player.attack += 3;
+        player.inventory.push(
+          { name: "🗡️ Training Dagger", type: "weapon", attack: 6, critChance: 8, class: "rogue", description: "A basic dagger. +6 Attack, +8% Crit Chance" }
+        );
+        player.skills.push(skillsList.rogue[0]); // Start with Backstab
+      }
+      
+      goTown();
+    }
+
     // Initial load
-    goTown();
+    if (!loadGame()) {
+      selectClass();
+    }
   </script>
 </body>
 </html>
