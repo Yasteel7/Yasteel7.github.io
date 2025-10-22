@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>Text-Based RPG</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body {
       background-color: #1a1a2e;
@@ -61,6 +62,11 @@
       transform: translateY(-2px);
       box-shadow: 0 5px 15px rgba(0, 255, 157, 0.4);
     }
+    /* Make buttons more touch-friendly */
+    button {
+      -webkit-tap-highlight-color: rgba(0,0,0,0);
+      touch-action: manipulation;
+    }
     #log {
       white-space: pre-wrap;
       margin-top: 20px;
@@ -117,6 +123,56 @@
       height: 100%;
       border-radius: 5px;
       transition: width 0.3s ease;
+    }
+    /* Responsive adjustments for small screens */
+    @media (max-width: 720px) {
+      body {
+        padding: 12px;
+      }
+      h1 {
+        font-size: 1.4rem;
+      }
+      #stats {
+        font-size: 14px;
+        padding: 12px;
+      }
+      button {
+        width: 100%;
+        padding: 14px 12px;
+        font-size: 16px;
+        border-radius: 8px;
+        margin: 6px 0;
+      }
+      #menu {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      #log {
+        font-size: 15px;
+        max-height: 50vh;
+        overflow-y: auto;
+      }
+      .quest-item {
+        padding: 12px;
+        font-size: 15px;
+      }
+      .health-bar, .monster-health-bar {
+        height: 16px;
+      }
+      .health-fill, .monster-health-fill {
+        height: 100%;
+      }
+      #monster-info {
+        padding: 12px;
+      }
+    }
+
+    /* Slight layout tweaks for medium screens */
+    @media (min-width: 721px) and (max-width: 1024px) {
+      body { padding: 16px; }
+      button { padding: 12px 14px; }
+      #log { max-height: 40vh; }
     }
   </style>
 </head>
@@ -238,24 +294,24 @@
 
     const monsters = [
       // Tier 1 (Beginner)
-      { name: "Goblin", hp: 30, attack: 8, gold: 10, xp: 15, tier: 1 },
-      { name: "Wolf", hp: 35, attack: 10, gold: 12, xp: 18, tier: 1 },
-      { name: "Bandit", hp: 40, attack: 9, gold: 15, xp: 20, tier: 1 },
+      { name: "Goblin", hp: 25, attack: 5, gold: 15, xp: 20, tier: 1 },
+      { name: "Wolf", hp: 30, attack: 7, gold: 18, xp: 25, tier: 1 },
+      { name: "Bandit", hp: 35, attack: 6, gold: 25, xp: 30, tier: 1 },
       
       // Tier 2 (Intermediate)
-      { name: "Orc", hp: 50, attack: 12, gold: 20, xp: 25, tier: 2 },
-      { name: "Skeleton Warrior", hp: 45, attack: 14, gold: 22, xp: 28, tier: 2 },
-      { name: "Dark Elf", hp: 40, attack: 16, gold: 25, xp: 30, tier: 2 },
+      { name: "Orc", hp: 60, attack: 12, gold: 40, xp: 45, tier: 2 },
+      { name: "Skeleton Warrior", hp: 50, attack: 15, gold: 45, xp: 50, tier: 2 },
+      { name: "Dark Elf", hp: 45, attack: 18, gold: 50, xp: 55, tier: 2 },
       
       // Tier 3 (Advanced)
-      { name: "Dark Knight", hp: 80, attack: 18, gold: 40, xp: 45, tier: 3 },
-      { name: "Necromancer", hp: 60, attack: 22, gold: 45, xp: 50, tier: 3 },
-      { name: "Troll", hp: 100, attack: 20, gold: 50, xp: 55, tier: 3 },
+      { name: "Dark Knight", hp: 100, attack: 22, gold: 80, xp: 90, tier: 3 },
+      { name: "Necromancer", hp: 80, attack: 25, gold: 90, xp: 100, tier: 3 },
+      { name: "Troll", hp: 120, attack: 20, gold: 100, xp: 110, tier: 3 },
       
       // Tier 4 (Elite)
-      { name: "Young Dragon", hp: 150, attack: 25, gold: 100, xp: 100, tier: 4 },
-      { name: "Demon Lord", hp: 180, attack: 28, gold: 120, xp: 110, tier: 4 },
-      { name: "Ancient Golem", hp: 200, attack: 22, gold: 130, xp: 120, tier: 4 }
+      { name: "Young Dragon", hp: 200, attack: 30, gold: 200, xp: 200, tier: 4 },
+      { name: "Demon Lord", hp: 250, attack: 35, gold: 250, xp: 220, tier: 4 },
+      { name: "Ancient Golem", hp: 300, attack: 28, gold: 300, xp: 250, tier: 4 }
     ];
 
     const finalBoss = {
@@ -466,7 +522,11 @@
       }
       
       // Update monster display
-      updateMonsterDisplay(monster);
+      if (monster.hp <= 0) {
+        updateMonsterDisplay(monster, true);
+      } else {
+        updateMonsterDisplay(monster);
+      }
 
       let monsterDmg = monster.attack;
 
@@ -502,7 +562,13 @@
 
     function renderLog(message, append = true) {
       const log = document.getElementById("log");
-      log.innerText = append ? message + "\n\n" + log.innerText : message;
+      // Wrap messages in a quest-item style so they don't remove existing HTML controls
+      const htmlMessage = `<div class="quest-item">${message.replace(/\n/g, '<br>')}</div>`;
+      if (append) {
+        log.innerHTML = htmlMessage + log.innerHTML;
+      } else {
+        log.innerHTML = htmlMessage;
+      }
     }
 
     function renderMenu(buttons = []) {
@@ -517,6 +583,8 @@
     }
 
     function goTown() {
+      // Clear any monster display when returning to town
+      updateMonsterDisplay(null);
       renderLog("Welcome to Town Square");
       renderStats();
       renderMenu([
@@ -527,7 +595,8 @@
         { label: "🍻 Tavern", action: goTavern },
         { label: "⚡ Change Class", action: selectClass },
         { label: "💾 Save Game", action: () => { saveGame(); goTown(); } },
-        { label: "📂 Load Game", action: () => { loadGame(); goTown(); } }
+        { label: "📂 Load Game", action: () => { loadGame(); goTown(); } },
+        { label: "🔄 New Game", action: confirmRestart }
       ]);
     }
 
@@ -556,32 +625,44 @@
       showCombatMenu(monster, "You encountered a " + monster.name + "!");
     }
 
-    function updateMonsterDisplay(monster) {
+    function updateMonsterDisplay(monster, defeated = false) {
       const monsterInfo = document.getElementById("monster-info");
       const monsterName = document.getElementById("monster-name");
       const monsterHealthFill = document.getElementById("monsterHealthFill");
       const monsterStatus = document.getElementById("monster-status");
 
-      if (monster && monster.hp > 0) {
-        monsterInfo.style.display = "block";
-        monsterName.innerText = monster.name;
-        
-        // Calculate health percentage
-        const baseMonster = monster.name === finalBoss.name ? finalBoss : 
-          monsters.find(m => m.name === monster.name);
-        const maxHp = baseMonster.hp;
-        const hpPercent = (monster.hp / maxHp) * 100;
-        monsterHealthFill.style.width = hpPercent + "%";
-
-        // Show status effects
-        let status = `HP: ${monster.hp}/${maxHp}`;
-        if (monster.effects.poison > 0) {
-          status += " | 🤢 Poisoned";
-        }
-        monsterStatus.innerText = status;
-      } else {
+      if (!monster) {
         monsterInfo.style.display = "none";
+        return;
       }
+
+      monsterInfo.style.display = "block";
+      monsterName.innerText = monster.name;
+      
+      // Calculate health percentage
+      const baseMonster = monster.name === finalBoss.name ? finalBoss : 
+        monsters.find(m => m.name === monster.name);
+      const maxHp = baseMonster.hp;
+      const hpPercent = (monster.hp / maxHp) * 100;
+      
+      if (defeated) {
+        // Animate HP to 0 when defeated
+        monsterHealthFill.style.transition = "width 1s ease-out";
+        monsterHealthFill.style.width = "0%";
+        setTimeout(() => {
+          monsterInfo.style.display = "none";
+          monsterHealthFill.style.transition = "width 0.3s ease"; // Reset transition
+        }, 1000);
+      } else {
+        monsterHealthFill.style.width = hpPercent + "%";
+      }
+
+      // Show status effects
+      let status = `HP: ${monster.hp}/${maxHp}`;
+      if (monster.effects.poison > 0) {
+        status += " | 🤢 Poisoned";
+      }
+      monsterStatus.innerText = status;
     }
 
     function showCombatMenu(monster, message) {
@@ -604,26 +685,29 @@
 
       buttons.push({ label: "🏃 Flee", action: goTown });
 
-      renderLog(message);
+      // Replace the log with the combat message so previous UI text doesn't carry over
+      renderLog(message, false);
       renderMenu(buttons);
     }
 
     function showCombatInventory(monster) {
+      const monsterState = encodeURIComponent(JSON.stringify(monster));
       let html = "<h3>🎒 Combat Inventory</h3>";
       player.inventory.forEach((item, i) => {
         if (item.type === "consumable") {
           html += `
             <div class="quest-item">
               ${item.name} - ${item.description}<br>
-              <button onclick="useCombatItem(${i}, '${monster.name}')">Use</button>
+              <button onclick='useCombatItem(${i}, "${monsterState}")'>Use</button>
             </div>`;
         }
       });
-      html += `<br><button onclick="showCombatMenu(${JSON.stringify(monster)}, 'Combat continues...')">Back to Combat</button>`;
+      html += `<br><button onclick='returnToCombat("${monsterState}")'>Back to Combat</button>`;
       document.getElementById("log").innerHTML = html;
     }
 
     function showSkills(monster) {
+      const monsterState = encodeURIComponent(JSON.stringify(monster));
       let html = "<h3>💫 Skills</h3>";
       player.skills.forEach((skill, i) => {
         const canUse = player.mp >= skill.mpCost;
@@ -631,16 +715,17 @@
           <div class="quest-item">
             ${skill.name} - ${skill.description}<br>
             MP Cost: ${skill.mpCost}<br>
-            <button onclick="useSkill(${i}, '${monster.name}', ${monster.hp}, ${JSON.stringify(monster.effects)})" ${canUse ? '' : 'disabled'}>
+            <button onclick='useSkill(${i}, "${monsterState}")' ${canUse ? '' : 'disabled'}>
               Use Skill ${canUse ? '' : '(Not enough MP)'}
             </button>
           </div>`;
       });
-      html += `<br><button onclick="returnToCombat('${monster.name}', ${monster.hp}, ${JSON.stringify(monster.effects)})">Back to Combat</button>`;
+      html += `<br><button onclick='returnToCombat("${monsterState}")'>Back to Combat</button>`;
       document.getElementById("log").innerHTML = html;
     }
 
     function showSpells(monster) {
+      const monsterState = encodeURIComponent(JSON.stringify(monster));
       let html = "<h3>✨ Spells</h3>";
       player.spells.forEach((spell, i) => {
         const canCast = player.mp >= spell.mpCost;
@@ -648,17 +733,18 @@
           <div class="quest-item">
             ${spell.name} - ${spell.description}<br>
             MP Cost: ${spell.mpCost}<br>
-            <button onclick="castSpell(${i}, ${JSON.stringify(monster)})" ${canCast ? '' : 'disabled'}>
+            <button onclick='castSpell(${i}, "${monsterState}")' ${canCast ? '' : 'disabled'}>
               Cast Spell ${canCast ? '' : '(Not enough MP)'}
             </button>
           </div>`;
       });
-      html += `<br><button onclick="showCombatMenu(${JSON.stringify(monster)}, 'Combat continues...')">Back to Combat</button>`;
+      html += `<br><button onclick='returnToCombat("${monsterState}")'>Back to Combat</button>`;
       document.getElementById("log").innerHTML = html;
     }
 
-    function useCombatItem(index, monsterName) {
+    function useCombatItem(index, monsterState) {
       const item = player.inventory[index];
+      const monster = JSON.parse(decodeURIComponent(monsterState));
       if (item.type === "consumable") {
         if (item.restoreMp) {
           player.mp = Math.min(player.maxMp, player.mp + item.effect);
@@ -669,52 +755,38 @@
         }
         player.inventory.splice(index, 1);
         renderStats();
-        
-        // Reconstruct monster object and return to combat
-        const monster = monsters.find(m => m.name === monsterName);
-        if (monster) {
-          showCombatMenu(monster, "Combat continues...");
-        }
+        showCombatMenu(monster, "Combat continues...");
       }
     }
 
-    function castSpell(index, monster) {
+    function castSpell(index, monsterState) {
+      const monster = JSON.parse(decodeURIComponent(monsterState));
       const spell = player.spells[index];
       if (player.mp >= spell.mpCost) {
         player.mp -= spell.mpCost;
         let damage = spell.damage || 0;
         if (damage > 0) {
-          damage += player.magicPower;
+          // Magic power adds flat damage to spells (predictable with equipment)
+          damage = Math.floor(damage + player.magicPower);
           monster.hp -= damage;
           processMonsterDamage(monster, `You cast ${spell.name} dealing ${damage} magic damage!`);
         } else if (spell.healing) {
-          const healing = spell.healing + Math.floor(player.magicPower / 2);
+          const healing = Math.floor(spell.healing + Math.floor(player.magicPower / 2));
           player.hp = Math.min(player.maxHp, player.hp + healing);
+          renderStats();
           showCombatMenu(monster, `You cast ${spell.name} healing ${healing} HP!`);
         }
       }
     }
 
-    function returnToCombat(monsterName, monsterHp, monsterEffects) {
-      const baseMonster = monsterName === finalBoss.name ? finalBoss : 
-        monsters.find(m => m.name === monsterName);
-      const monster = {
-        ...baseMonster,
-        hp: monsterHp,
-        effects: monsterEffects
-      };
+    function returnToCombat(monsterState) {
+      const monster = JSON.parse(decodeURIComponent(monsterState));
       showCombatMenu(monster, "Combat continues...");
     }
 
-    function useSkill(index, monsterName, monsterHp, monsterEffects) {
+    function useSkill(index, monsterState) {
+      const monster = JSON.parse(decodeURIComponent(monsterState));
       const skill = player.skills[index];
-      const baseMonster = monsterName === finalBoss.name ? finalBoss : 
-        monsters.find(m => m.name === monsterName);
-      const monster = {
-        ...baseMonster,
-        hp: monsterHp,
-        effects: monsterEffects
-      };
       
       if (player.mp < skill.mpCost) {
         showCombatMenu(monster, "Not enough MP to use " + skill.name);
@@ -772,6 +844,8 @@
       logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
 
       if (monster.hp <= 0) {
+        // Show monster being defeated with HP animation
+        updateMonsterDisplay(monster, true);
         player.gold += monster.gold;
         player.xp += monster.xp;
         logMsg += `You defeated the ${monster.name}!\nGold +${monster.gold}, XP +${monster.xp}`;
@@ -803,13 +877,20 @@
     }
 
     function openInventory() {
-      let html = "<h3>Inventory</h3>";
+      let html = "<h3>🎒 Inventory</h3>";
       player.inventory.forEach((item, i) => {
+        html += `<div class="quest-item">
+          <strong>${item.name}</strong><br>
+          <em>${item.description}</em><br>`;
         if (item.type === "consumable") {
-          html += `${item.name} - <button onclick="useItem(${i})">Use</button><br>`;
+          html += `<button onclick="useItem(${i})">Use</button>`;
         } else {
-          html += `${item.name} - <button onclick="equipItem(${i})">Equip</button><br>`;
+          const isEquipped = 
+            (item.type === "weapon" && player.equipped.weapon === item) ||
+            (item.type === "armor" && player.equipped.armor === item);
+          html += `<button onclick="equipItem(${i})">${isEquipped ? 'Equipped' : 'Equip'}</button>`;
         }
+        html += '</div>';
       });
       html += `<br><button onclick="goTown()">Return to Town</button>`;
       document.getElementById("log").innerHTML = html;
@@ -818,35 +899,122 @@
     function useItem(index) {
       const item = player.inventory[index];
       if (item.type === "consumable") {
-        player.hp = Math.min(player.maxHp, player.hp + item.effect);
+        if (item.restoreMp) {
+          player.mp = Math.min(player.maxMp, player.mp + item.effect);
+          renderLog(`Used ${item.name}. Restored ${item.effect} MP.`);
+        } else {
+          player.hp = Math.min(player.maxHp, player.hp + item.effect);
+          renderLog(`Used ${item.name}. Healed ${item.effect} HP.`);
+        }
         player.inventory.splice(index, 1);
-        renderLog(`Used ${item.name}. Healed ${item.effect} HP.`);
         renderStats();
       }
     }
 
     function equipItem(index) {
       const item = player.inventory[index];
+      let oldItem = null;
+      let statsChanged = [];
+      
       if (item.type === "weapon") {
-        if (player.equipped.weapon) player.attack -= player.equipped.weapon.attack;
+        oldItem = player.equipped.weapon;
+        if (oldItem) {
+          player.attack -= oldItem.attack;
+          if (oldItem.magicPower) {
+            player.magicPower -= oldItem.magicPower;
+            statsChanged.push(`Magic Power ${-oldItem.magicPower}`);
+          }
+          if (oldItem.critChance) {
+            player.critChance -= oldItem.critChance;
+            statsChanged.push(`Crit Chance ${-oldItem.critChance}%`);
+          }
+        }
+        
         player.equipped.weapon = item;
         player.attack = player.baseAttack + item.attack;
-        renderLog(`Equipped ${item.name}.`);
+        statsChanged.push(`Attack +${item.attack}`);
+        
+        if (item.magicPower) {
+          player.magicPower += item.magicPower;
+          statsChanged.push(`Magic Power +${item.magicPower}`);
+        }
+        if (item.critChance) {
+          player.critChance += item.critChance;
+          statsChanged.push(`Crit Chance +${item.critChance}%`);
+        }
       } else if (item.type === "armor") {
-        if (player.equipped.armor) player.maxHp -= player.equipped.armor.hp;
+        oldItem = player.equipped.armor;
+        if (oldItem) {
+          player.maxHp -= oldItem.hp;
+          if (oldItem.magicPower) {
+            player.magicPower -= oldItem.magicPower;
+            statsChanged.push(`Magic Power ${-oldItem.magicPower}`);
+          }
+          if (oldItem.critChance) {
+            player.critChance -= oldItem.critChance;
+            statsChanged.push(`Crit Chance ${-oldItem.critChance}%`);
+          }
+        }
+        
         player.equipped.armor = item;
         player.maxHp += item.hp;
+        statsChanged.push(`Max HP +${item.hp}`);
+        
         if (player.hp > player.maxHp) player.hp = player.maxHp;
-        renderLog(`Equipped ${item.name}.`);
+        
+        if (item.magicPower) {
+          player.magicPower += item.magicPower;
+          statsChanged.push(`Magic Power +${item.magicPower}`);
+        }
+        if (item.critChance) {
+          player.critChance += item.critChance;
+          statsChanged.push(`Crit Chance +${item.critChance}%`);
+        }
       }
+      
       renderStats();
+      openInventory(); // Refresh inventory display
+      
+      // Show equipment confirmation with stat changes
+      let confirmMsg = `Equipped ${item.name}.\n`;
+      if (oldItem) {
+        confirmMsg += `Unequipped ${oldItem.name}.\n`;
+      }
+      confirmMsg += `Stat changes:\n${statsChanged.join('\n')}`;
+      
+      document.getElementById("log").innerHTML = document.getElementById("log").innerHTML + 
+        `<div class="quest-item" style="background-color: #1a4a1a; margin-top: 10px;">${confirmMsg}</div>`;
     }
 
     function openShop() {
-      let html = "<h3>Shop</h3>";
-      shopItems.forEach((item, i) => {
-        html += `${item.name} - ${item.cost} Gold <button onclick="buyItem(${i})">Buy</button><br>`;
-      });
+      let html = "<h3>🛒 Shop</h3>";
+      
+      // Group items by category
+      const categories = {
+        weapon: "⚔️ Weapons",
+        armor: "🛡️ Armor",
+        consumable: "🧪 Consumables"
+      };
+      
+      for (const [type, title] of Object.entries(categories)) {
+        const categoryItems = shopItems.filter(item => item.type === type && 
+          (!item.class || item.class === player.class));
+        
+        if (categoryItems.length > 0) {
+          html += `<h4>${title}</h4>`;
+          categoryItems.forEach((item, i) => {
+            const canAfford = player.gold >= item.cost;
+            html += `<div class="quest-item">
+              <strong>${item.name}</strong> - ${item.cost} Gold<br>
+              <em>${item.description}</em><br>
+              <button onclick="buyItem(${shopItems.indexOf(item)})" ${canAfford ? '' : 'disabled'}>
+                ${canAfford ? 'Buy' : 'Not enough gold'}
+              </button>
+            </div>`;
+          });
+        }
+      }
+      
       html += `<br><button onclick="goTown()">Return to Town</button>`;
       document.getElementById("log").innerHTML = html;
     }
@@ -855,11 +1023,23 @@
       const item = shopItems[index];
       if (player.gold >= item.cost) {
         player.gold -= item.cost;
-        player.inventory.push(item);
-        renderLog(`You bought ${item.name}.`);
+        player.inventory.push({...item}); // Clone the item
         renderStats();
+        // Re-render shop with updated gold values
+        openShop();
+        // Show purchase confirmation with stats
+        let confirmMsg = `Bought ${item.name} for ${item.cost} gold.\n`;
+        if (item.attack) confirmMsg += `Attack: +${item.attack}\n`;
+        if (item.hp) confirmMsg += `HP: +${item.hp}\n`;
+        if (item.magicPower) confirmMsg += `Magic Power: +${item.magicPower}\n`;
+        if (item.critChance) confirmMsg += `Crit Chance: +${item.critChance}%\n`;
+        document.getElementById("log").innerHTML = document.getElementById("log").innerHTML + 
+          `<div class="quest-item" style="background-color: #1a4a1a; margin-top: 10px;">${confirmMsg}</div>`;
       } else {
-        renderLog("Not enough gold.");
+        const needed = item.cost - player.gold;
+        document.getElementById("log").innerHTML = document.getElementById("log").innerHTML + 
+          `<div class="quest-item" style="background-color: #4a1a1a; margin-top: 10px;">
+           Not enough gold. Need ${needed} more gold.</div>`;
       }
     }
 
@@ -928,7 +1108,44 @@
 
     function startNewGame() {
       localStorage.removeItem("rpgSave");
-      location.reload();
+      // Reset player to initial state
+      Object.assign(player, {
+        name: "Hero",
+        level: 1,
+        xp: 0,
+        maxHp: 100,
+        hp: 100,
+        maxMp: 50,
+        mp: 50,
+        baseAttack: 10,
+        attack: 10,
+        magicPower: 0,
+        critChance: 5,
+        gold: 50,
+        class: "none",
+        quests: [],
+        inventory: [
+          { name: "🧪 Health Potion", type: "consumable", effect: 30, description: "Restores 30 HP" },
+          { name: "🧪 Mana Potion", type: "consumable", effect: 20, description: "Restores 20 MP", restoreMp: true },
+          { name: "⚔️ Wooden Sword", type: "weapon", attack: 5, description: "A basic wooden sword. +5 Attack" },
+          { name: "🛡️ Leather Armor", type: "armor", hp: 10, description: "Basic leather protection. +10 HP" }
+        ],
+        equipped: { weapon: null, armor: null },
+        spells: [],
+        skills: []
+      });
+      
+      renderLog("Starting new game...");
+      goTown();
+    }
+
+    function confirmRestart() {
+      document.getElementById("log").innerHTML = `
+        <h3>🔄 Start New Game?</h3>
+        <p>Are you sure you want to start a new game? All current progress will be lost.</p>
+        <button onclick="startNewGame()">Yes, Start New Game</button>
+        <button onclick="goTown()">No, Return to Town</button>
+      `;
     }
 
     function updateQuestProgress(monsterName) {
@@ -976,17 +1193,17 @@
 
     function goTavern() {
       const healCost = 20;
-      if (player.hp < player.maxHp) {
+      if (player.hp < player.maxHp || player.mp < player.maxMp) {
         document.getElementById("log").innerHTML = `
           <h3>🍻 Welcome to the Tavern</h3>
-          <p>Heal for ${healCost} gold?</p>
-          <button onclick="healAtTavern()">Heal</button>
+          <p>Rest and restore all HP and MP for ${healCost} gold?</p>
+          <button onclick="healAtTavern()">Rest</button>
           <button onclick="goTown()">Leave Tavern</button>
         `;
       } else {
         document.getElementById("log").innerHTML = `
           <h3>🍻 Welcome to the Tavern</h3>
-          <p>You are already at full health!</p>
+          <p>You are already at full health and mana!</p>
           <button onclick="goTown()">Leave Tavern</button>
         `;
       }
@@ -996,8 +1213,9 @@
       const healCost = 20;
       if (player.gold >= healCost) {
         player.hp = player.maxHp;
+        player.mp = player.maxMp;
         player.gold -= healCost;
-        renderLog(`You have been healed! Cost: ${healCost} Gold.`);
+        renderLog(`You have been fully restored! Cost: ${healCost} Gold.`);
         renderStats();
         renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
       } else {
