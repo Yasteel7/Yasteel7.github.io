@@ -112,6 +112,34 @@
       border-radius: 5px;
       border: 1px solid #2a2a4a;
     }
+    
+    .crit-msg {
+      color: #ffdd00;
+      font-weight: bold;
+      text-shadow: 0 0 5px rgba(255, 221, 0, 0.5);
+      animation: critPulse 0.5s ease-in-out;
+    }
+    
+    .super-crit-msg {
+      color: #ff5500;
+      font-weight: bold;
+      font-size: 1.1em;
+      text-shadow: 0 0 8px rgba(255, 85, 0, 0.7);
+      animation: superCritPulse 0.8s ease-in-out;
+    }
+    
+    @keyframes critPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+      100% { transform: scale(1); }
+    }
+    
+    @keyframes superCritPulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.2); }
+      75% { transform: rotate(-2deg) scale(1.1); }
+      100% { transform: scale(1); }
+    }
     .progress-bar {
       background: #2a2a4a;
       height: 10px;
@@ -227,8 +255,9 @@
         name: "❄️ Frostbolt",
         damage: 15,
         mpCost: 10,
-        description: "Fires a bolt of ice dealing 15 magic damage and slowing the enemy",
-        levelRequired: 3
+        description: "Fires a bolt of ice dealing 15 magic damage and freezing the enemy (30% chance to miss their next turn)",
+        levelRequired: 3,
+        freezeDuration: 1
       },
       heal: {
         name: "💚 Heal",
@@ -491,6 +520,28 @@
       { name: "🥋 Assassin's Garb", type: "armor", hp: 95, critChance: 35, class: "rogue", cost: 540,
         description: "Legendary armor. +95 HP, +35% Crit Chance" },
 
+      // New Epic Tier Equipment
+      
+      // Warrior Epic Equipment
+      { name: "⚔️ Dragonslayer", type: "weapon", attack: 85, class: "warrior", cost: 1500,
+        description: "An enormous blade of legend. +85 Attack" },
+      { name: "🛡️ Godplate Armor", type: "armor", hp: 200, class: "warrior", cost: 1200,
+        description: "Divine protection. +200 HP" },
+      
+      // Mage Epic Equipment
+      { name: "🌟 Staff of the Elements", type: "weapon", attack: 45, magicPower: 100, class: "mage", cost: 1800,
+        description: "Channel pure elemental power. +45 Attack, +100 Magic Power" },
+      { name: "🌠 Celestial Robes", type: "armor", hp: 140, magicPower: 75, class: "mage", cost: 1400,
+        description: "Woven from starlight. +140 HP, +75 Magic Power" },
+      
+      // Rogue Epic Equipment - Super Crit focused
+      { name: "⚡ Stormbringer", type: "weapon", attack: 70, critChance: 85, class: "rogue", cost: 2000,
+        description: "Lightning-fast legendary blade. +70 Attack, +85% Crit Chance" },
+      { name: "🌑 Shadowweave Suit", type: "armor", hp: 150, critChance: 45, class: "rogue", cost: 1600,
+        description: "Embrace the shadows. +150 HP, +45% Crit Chance" },
+        
+      // Consumables section is unchanged
+
       // Consumables
       { name: "�🧪 Health Potion", type: "consumable", effect: 30, cost: 10,
         description: "Restores 30 HP" },
@@ -541,6 +592,16 @@
       }
 
       let monsterDmg = monster.attack;
+      
+      // Check for frozen effect (30% chance to skip turn)
+      if (monster.effects && monster.effects.frozen > 0) {
+        const frozenRoll = Math.random() * 100;
+        if (frozenRoll <= 30) {
+          monsterDmg = 0;
+          logMsg += "❄️ The frozen enemy misses their turn!\n";
+        }
+        monster.effects.frozen--;
+      }
 
       // Apply defensive effects
       if (player.effects && player.effects.blockDuration > 0) {
@@ -805,7 +866,16 @@
           // Magic power adds flat damage to spells (predictable with equipment)
           damage = Math.floor(damage + player.magicPower);
           monster.hp -= damage;
-          processMonsterDamage(monster, `You cast ${spell.name} dealing ${damage} magic damage!`);
+          let msg = `You cast ${spell.name} dealing ${damage} magic damage!`;
+          
+          // Apply Frostbolt freeze effect
+          if (spell.freezeDuration > 0) {
+            monster.effects = monster.effects || {};
+            monster.effects.frozen = (monster.effects.frozen || 0) + spell.freezeDuration;
+            msg += "\n❄️ Enemy is frozen!";
+          }
+          
+          processMonsterDamage(monster, msg);
           if (monster.hp <= 0) activeMonster = null;
         } else if (spell.healing) {
           const healing = Math.floor(spell.healing + Math.floor(player.magicPower / 2));
@@ -845,12 +915,29 @@
         damage = Math.floor(player.attack * skill.damage);
       }
 
-      // Apply critical hits for rogues
+      // Two-tier crit system for rogues (normal crit up to 100%, overflow gives chance for super crit)
       if (player.class === "rogue") {
-        const critRoll = Math.random() * 100;
-        if (critRoll <= player.critChance) {
-          damage *= 2;
-          message += "Critical hit! ";
+        const missChance = 0; // skill hits are assumed to land unless specific skill says otherwise
+        if (player.critChance > 0) {
+          const critRoll = Math.random() * 100;
+          const critChanceCap = Math.min(player.critChance, 100);
+          let isCrit = false;
+          if (critRoll <= critChanceCap) {
+            isCrit = true;
+            damage *= 2;
+          }
+          if (isCrit && player.critChance > 100) {
+            const overflow = player.critChance - 100;
+            const superRoll = Math.random() * 100;
+            if (superRoll <= overflow) {
+              damage = Math.floor(damage * 1.5) * 2; // apply extra multiplier for super crit (x3 total)
+              message += `<span class="super-crit-msg">💥 SUPER CRITICAL HIT! 💥</span> `;
+            } else {
+              message += `<span class="crit-msg">⚡ CRITICAL HIT! ⚡</span> `;
+            }
+          } else if (isCrit) {
+            message += `<span class="crit-msg">⚡ CRITICAL HIT! ⚡</span> `;
+          }
         }
       }
 
@@ -875,16 +962,43 @@
     function attack(monster) {
       // prefer the live activeMonster reference when available
       if (activeMonster) monster = activeMonster;
-      const critRoll = Math.random() * 100;
-      const crit = critRoll <= player.critChance;
       const miss = Math.random() < 0.1;
-      const playerDmg = miss ? 0 : crit ? player.attack * 2 : player.attack;
+
+      // Two-tier crit system: normal crit up to 100%, overflow becomes chance to upgrade crit into a super crit
+      let crit = false;
+      let superCrit = false;
+      if (!miss && player.class === "rogue" && player.critChance > 0) {
+        const critRoll = Math.random() * 100;
+        const critChanceCap = Math.min(player.critChance, 100);
+        if (critRoll <= critChanceCap) {
+          crit = true;
+          if (player.critChance > 100) {
+            const overflow = player.critChance - 100; // e.g. 105 -> overflow 5%
+            const superRoll = Math.random() * 100;
+            if (superRoll <= overflow) superCrit = true;
+          }
+        }
+      }
+
+      const playerDmg = miss ? 0 : superCrit ? player.attack * 3 : crit ? player.attack * 2 : player.attack;
       let monsterDmg = monster.attack;
 
       monster.hp -= playerDmg;
       player.hp -= monsterDmg;
 
-      let logMsg = `You ${miss ? "missed" : crit ? "critically hit" : "hit"} the ${monster.name} for ${playerDmg} damage.\n`;
+      // Build combat message with styled crit text
+      let hitMsg;
+      if (miss) {
+        hitMsg = "missed";
+      } else if (superCrit) {
+        hitMsg = `<span class="super-crit-msg">💥 SUPER CRITICAL HIT! 💥</span>`;
+      } else if (crit) {
+        hitMsg = `<span class="crit-msg">⚡ CRITICAL HIT! ⚡</span>`;
+      } else {
+        hitMsg = "hit";
+      }
+
+      let logMsg = `You ${hitMsg} the ${monster.name} for ${playerDmg} damage.\n`;
       logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
 
       if (monster.hp <= 0) {
@@ -1355,11 +1469,44 @@
         player.skills.push(skillsList.rogue[0]); // Start with Backstab
       }
       
-      // Return to town UI but replace log with a single confirmation message showing the chosen class
+      // Grant class abilities appropriate for player's level (avoid duplicates)
+      const classSkills = skillsList[classId] || [];
+      classSkills.forEach(s => {
+        if ((s.levelRequired || 1) <= player.level) {
+          if (!player.skills.find(ps => ps.id === s.id || ps.name === s.name)) {
+            player.skills.push(s);
+          }
+        }
+      });
+      if (classId === 'mage') {
+        Object.values(spells).forEach(sp => {
+          if ((sp.levelRequired || 1) <= player.level) {
+            if (!player.spells.find(ps => ps.name === sp.name)) player.spells.push(sp);
+          }
+        });
+      }
+
+      // Return to town UI but replace log with a confirmation message showing the chosen class and abilities
       goTown();
       const classNames = { warrior: 'Warrior', mage: 'Mage', rogue: 'Rogue' };
       const chosenName = classNames[classId] || classId;
-      renderLog(`You are now a ${chosenName}.`, false);
+      let confirmMsg = `You are now a ${chosenName}.\n`;
+      
+      // List skills and spells gained
+      if (player.skills.length > 0) {
+        confirmMsg += "\nSkills learned:";
+        player.skills.forEach(s => {
+          confirmMsg += `\n- ${s.name}`;
+        });
+      }
+      if (player.spells && player.spells.length > 0) {
+        confirmMsg += "\nSpells learned:";
+        player.spells.forEach(s => {
+          confirmMsg += `\n- ${s.name}`;
+        });
+      }
+      
+      renderLog(confirmMsg, false);
     }
 
     // Initial load
