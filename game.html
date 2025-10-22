@@ -202,6 +202,42 @@
       button { padding: 12px 14px; }
       #log { max-height: 40vh; }
     }
+
+    /* Monster defeat animation */
+    .defeated-flash {
+      animation: flashDefeat 1s ease-in-out;
+    }
+
+    @keyframes flashDefeat {
+      0% { color: #ff4444; transform: scale(1); text-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+      50% { color: #ff8888; transform: scale(1.2); text-shadow: 0 0 20px rgba(255, 136, 136, 0.7); }
+      100% { color: #ff4444; transform: scale(1); text-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
+    }
+
+    /* Loot display styling */
+    .loot-item {
+      background-color: #16213e;
+      padding: 15px;
+      margin: 10px 0;
+      border-radius: 8px;
+      border: 1px solid #2a2a4a;
+      animation: lootReveal 0.5s ease-out;
+    }
+
+    .loot-gold {
+      color: #ffd700;
+      text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+    }
+
+    .loot-xp {
+      color: #00ff9d;
+      text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+    }
+
+    @keyframes lootReveal {
+      0% { opacity: 0; transform: translateY(-20px); }
+      100% { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
@@ -577,34 +613,27 @@
       if (monster.effects.poison > 0) {
         const poisonDamage = 10;
         monster.hp -= poisonDamage;
-        logMsg += `☠️ Poison deals ${poisonDamage} damage!\n`;
+        // Show poison damage and remaining duration clearly
+        logMsg += `☠️ Poison Effect:\n`;
+        logMsg += `   💫 Deals ${poisonDamage} damage\n`;
+        logMsg += `   ⏱️ ${monster.effects.poison} turn${monster.effects.poison !== 1 ? 's' : ''} remaining\n`;
         monster.effects.poison--;
       }
       
-      // Update monster display
-      if (monster.hp <= 0) {
-        updateMonsterDisplay(monster, true);
-        // mark defeated and clear active reference
-        monster.defeated = true;
-        activeMonster = null;
-      } else {
-        updateMonsterDisplay(monster);
-      }
-
-      let monsterDmg = monster.attack;
+      // Clamp HP after all damage (including poison)
+      monster.hp = Math.max(0, Math.floor(monster.hp));
+      updateMonsterDisplay(monster);
       
-      // Check for frozen effect (30% chance to skip turn)
-      if (monster.effects && monster.effects.frozen > 0) {
-        const frozenRoll = Math.random() * 100;
-        if (frozenRoll <= 30) {
-          monsterDmg = 0;
-          logMsg += "❄️ The frozen enemy misses their turn!\n";
-        }
+      // Calculate monster damage with frozen effect
+      let monsterDmg = monster.attack;
+      if (monster.effects.frozen > 0 && Math.random() * 100 <= 30) {
+        monsterDmg = 0;
+        logMsg += "❄️ The frozen enemy misses their turn!\n";
         monster.effects.frozen--;
       }
 
       // Apply defensive effects
-      if (player.effects && player.effects.blockDuration > 0) {
+      if (player.effects?.blockDuration > 0) {
         monsterDmg *= (1 - player.effects.blockAmount);
         player.effects.blockDuration--;
         if (player.effects.blockDuration === 0) {
@@ -615,7 +644,8 @@
       player.hp -= Math.floor(monsterDmg);
       logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
 
-      if (monster.hp <= 0 && !monster.defeated) {
+      // Final defeat check - handleMonsterDefeat will mark defeated and clear activeMonster
+      if (monster.hp <= 0) {
         logMsg += handleMonsterDefeat(monster);
       } else if (player.hp <= 0) {
         logMsg += "You have been defeated...";
@@ -624,7 +654,7 @@
         showCombatMenu(monster, logMsg);
       }
 
-      // Replace the log with the latest combat message to remove any leftover UI (e.g., Back to Combat buttons)
+      // Replace the log with the latest combat message to remove any leftover UI
       renderLog(logMsg, false);
       renderStats();
     }
@@ -725,10 +755,13 @@
       const hpPercent = (monster.hp / maxHp) * 100;
       
       if (defeated) {
+        // Add defeat flash animation
+        monsterName.classList.add("defeated-flash");
         // Animate HP to 0 when defeated
         monsterHealthFill.style.transition = "width 1s ease-out";
         monsterHealthFill.style.width = "0%";
         setTimeout(() => {
+          monsterName.classList.remove("defeated-flash");
           monsterInfo.style.display = "none";
           monsterHealthFill.style.transition = "width 0.3s ease"; // Reset transition
         }, 1000);
@@ -736,11 +769,21 @@
         monsterHealthFill.style.width = hpPercent + "%";
       }
 
-      // Show status effects
+      // Show status effects with detailed info
       let status = `HP: ${monster.hp}/${maxHp}`;
+      const effects = [];
+      
       if (monster.effects.poison > 0) {
-        status += " | 🤢 Poisoned";
+        effects.push(`🤢 Poisoned (${monster.effects.poison} turns)`);
       }
+      if (monster.effects.frozen > 0) {
+        effects.push(`❄️ Frozen (${monster.effects.frozen} turns)`);
+      }
+      
+      if (effects.length > 0) {
+        status += ` | ${effects.join(" | ")}`;
+      }
+      
       monsterStatus.innerText = status;
     }
 
@@ -756,16 +799,40 @@
     }
 
     // Helper to handle monster defeat and rewards
+    function showLoot(monster) {
+      const questProgress = player.quests?.find(q => q.monster === monster.name);
+      const questMsg = questProgress ? 
+        `<div class="loot-item">
+           📋 Quest Progress: ${questProgress.count}/${questProgress.required} ${monster.name}s defeated
+         </div>` : '';
+
+      const lootHtml = `
+        <h3>🎁 Defeat Rewards</h3>
+        <div class="loot-item">
+          <span class="loot-gold">🪙 Gold: +${monster.gold}</span><br>
+          <span class="loot-xp">⭐ XP: +${monster.xp}</span><br>
+          ${monster.name === finalBoss.name ? '<br>🏆 <span style="color: #ffd700">Victory unlocked!</span>' : ''}
+        </div>
+        ${questMsg}
+        <br>
+        <button onclick="goTown()">🏠 Return to Town</button>
+      `;
+      document.getElementById("log").innerHTML = lootHtml;
+    }
+
     function handleMonsterDefeat(monster) {
       updateMonsterDisplay(monster, true);
       monster.defeated = true;
       activeMonster = null; // Clear active reference
       player.gold += monster.gold;
       player.xp += monster.xp;
-      const msg = `You defeated the ${monster.name}!\nGold +${monster.gold}, XP +${monster.xp}`;
+      const msg = `You defeated the ${monster.name}!`;
       updateQuestProgress(monster.name);
       checkLevelUp();
-      renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
+      renderMenu([
+        { label: "🎒 View Rewards", action: () => showLoot(monster) },
+        { label: "🏠 Return to Town", action: goTown }
+      ]);
       return msg;
     }
 
