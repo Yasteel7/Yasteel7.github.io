@@ -214,6 +214,48 @@
       100% { color: #ff4444; transform: scale(1); text-shadow: 0 0 10px rgba(255, 68, 68, 0.5); }
     }
 
+    /* Retro RPG styling */
+    .damage-poison {
+      color: #50ff50;
+      text-shadow: 0 0 5px #00ff00;
+      font-weight: bold;
+      font-family: monospace;
+    }
+
+    .turns-remaining {
+      color: #ffd700;
+      text-shadow: 0 0 4px #ffaa00;
+      font-family: monospace;
+    }
+
+    .effect-header {
+      color: #ff5555;
+      text-shadow: 0 0 6px #ff0000;
+      font-weight: bold;
+      font-family: monospace;
+      letter-spacing: 1px;
+    }
+
+    .status-effect {
+      color: #ffaa00;
+      text-shadow: 0 0 4px #ff5500;
+      font-family: monospace;
+    }
+
+    .combat-divider {
+      color: #666;
+      font-family: monospace;
+    }
+
+    .monster-status {
+      font-family: monospace;
+      font-size: 0.95em;
+      padding: 5px;
+      border: 1px solid #2a2a4a;
+      background: rgba(22, 33, 62, 0.8);
+      margin-top: 5px;
+    }
+
     /* Loot display styling */
     .loot-item {
       background-color: #16213e;
@@ -222,16 +264,34 @@
       border-radius: 8px;
       border: 1px solid #2a2a4a;
       animation: lootReveal 0.5s ease-out;
+      font-family: monospace;
     }
 
     .loot-gold {
       color: #ffd700;
       text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+      font-weight: bold;
     }
 
     .loot-xp {
       color: #00ff9d;
       text-shadow: 0 0 5px rgba(0, 255, 157, 0.5);
+      font-weight: bold;
+    }
+
+    /* Health bar retro styling */
+    .monster-health-bar {
+      border: 2px solid #2a2a4a;
+      box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+    }
+
+    .monster-health-fill {
+      background: linear-gradient(90deg, 
+        #ff4444 0%,
+        #ff6666 50%,
+        #ff4444 100%
+      );
+      box-shadow: 0 0 8px rgba(255,68,68,0.5);
     }
 
     @keyframes lootReveal {
@@ -607,55 +667,83 @@
     }
 
     function processMonsterDamage(monster, message) {
+      if (!monster) return;
+      
       let logMsg = message + "\n";
       
-      // Apply poison damage if active
-      if (monster.effects.poison > 0) {
+      // Apply poison damage if active and monster isn't dead yet
+      if (!monster.isDead && monster.effects.poison > 0) {
         const poisonDamage = 10;
-        monster.hp -= poisonDamage;
-        // Show poison damage and remaining duration clearly
-        logMsg += `☠️ Poison Effect:\n`;
-        logMsg += `   💫 Deals ${poisonDamage} damage\n`;
-        logMsg += `   ⏱️ ${monster.effects.poison} turn${monster.effects.poison !== 1 ? 's' : ''} remaining\n`;
+        monster.currentHp -= poisonDamage;
+        // Show poison damage and remaining duration with retro RPG styling
+        logMsg += `<span class="effect-header">☠️ POISON EFFECT</span>\n`;
+        logMsg += `╔════════════════════╗\n`;
+        logMsg += `║ 💫 Damage: <span class="damage-poison">-${poisonDamage}</span>     ║\n`;
+        logMsg += `║ ⏱️ Duration: <span class="turns-remaining">${monster.effects.poison}</span> turn${monster.effects.poison !== 1 ? 's' : ''} ║\n`;
+        logMsg += `╚════════════════════╝\n`;
         monster.effects.poison--;
       }
       
       // Clamp HP after all damage (including poison)
-      monster.hp = Math.max(0, Math.floor(monster.hp));
-      updateMonsterDisplay(monster);
-      
-      // Calculate monster damage with frozen effect
-      let monsterDmg = monster.attack;
-      if (monster.effects.frozen > 0 && Math.random() * 100 <= 30) {
-        monsterDmg = 0;
-        logMsg += "❄️ The frozen enemy misses their turn!\n";
-        monster.effects.frozen--;
-      }
+      monster.currentHp = Math.max(0, Math.floor(monster.currentHp));
 
-      // Apply defensive effects
-      if (player.effects?.blockDuration > 0) {
-        monsterDmg *= (1 - player.effects.blockAmount);
-        player.effects.blockDuration--;
-        if (player.effects.blockDuration === 0) {
-          delete player.effects.blockAmount;
+      // Calculate monster damage with frozen effect - only if monster not dead
+      let monsterDmg = 0;
+      if (!monster.isDead && monster.currentHp > 0) {
+        monsterDmg = monster.attack;
+        if (monster.effects.frozen > 0 && Math.random() * 100 <= 30) {
+          monsterDmg = 0;
+          logMsg += "❄️ The frozen enemy misses their turn!\n";
+          monster.effects.frozen--;
         }
+
+        // Apply defensive effects
+        if (player.effects?.blockDuration > 0) {
+          monsterDmg *= (1 - player.effects.blockAmount);
+          player.effects.blockDuration--;
+          if (player.effects.blockDuration === 0) {
+            delete player.effects.blockAmount;
+          }
+        }
+
+        player.hp -= Math.floor(monsterDmg);
+        logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
       }
 
-      player.hp -= Math.floor(monsterDmg);
-      logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
+      // Check for death and handle rewards
+      if (monster.currentHp <= 0 && !monster.isDead) {
+        monster.isDead = true;
+        logMsg += `\n<span class="death-message">${monster.name} has been defeated!</span>\n`;
 
-      // Final defeat check - handleMonsterDefeat will mark defeated and clear activeMonster
-      if (monster.hp <= 0) {
-        logMsg += handleMonsterDefeat(monster);
+        // Reward player
+        player.gold += monster.gold;
+        player.xp += monster.xp;
+        logMsg += `\nYou gained ${monster.gold} gold and ${monster.xp} XP!\n`;
+
+        // Update quests and check level up
+        updateQuestProgress(monster.name);
+        checkLevelUp();
+
+        // Clear active monster and update UI
+        activeMonster = null;
+        renderLog(logMsg, false);
+        renderMenu([
+          { label: "🏠 Return to Town", action: goTown },
+          { label: "⚔️ Fight Again", action: fight }
+        ]);
       } else if (player.hp <= 0) {
-        logMsg += "You have been defeated...";
+        // Player death
+        logMsg += "\nYou have been defeated...\n";
+        renderLog(logMsg, false);
         renderMenu([{ label: "🔁 Retry", action: goTown }]);
       } else {
+        // Combat continues
+        renderLog(logMsg, false);
         showCombatMenu(monster, logMsg);
       }
 
-      // Replace the log with the latest combat message to remove any leftover UI
-      renderLog(logMsg, false);
+      // Always update monster display and stats
+      updateMonsterDisplay(monster);
       renderStats();
     }
 
@@ -707,22 +795,24 @@
       if (player.level >= 10) availableTiers.push(3);
       if (player.level >= 15) availableTiers.push(4);
 
+      // Clear any existing activeMonster
+      activeMonster = null;
+
       // 5% chance to encounter Ancalagon if player is level 20+
       if (player.level >= 20 && Math.random() < 0.05) {
-        const boss = { ...finalBoss, effects: { poison: 0 } };
-        showCombatMenu(boss, "⚠️ The sky darkens... " + boss.description);
+        activeMonster = initMonster(finalBoss);
+        showCombatMenu(activeMonster, "⚠️ The sky darkens... " + activeMonster.description);
         return;
       }
 
       // Select monster from appropriate tier
       const tier = availableTiers[Math.floor(Math.random() * availableTiers.length)];
       const tierMonsters = monsters.filter(m => m.tier === tier);
-      const monster = { 
-        ...tierMonsters[Math.floor(Math.random() * tierMonsters.length)],
-        effects: { poison: 0 }
-      };
+      const baseMonster = tierMonsters[Math.floor(Math.random() * tierMonsters.length)];
       
-      showCombatMenu(monster, "You encountered a " + monster.name + "!");
+      // Initialize new monster as activeMonster
+      activeMonster = initMonster(baseMonster);
+      showCombatMenu(activeMonster, "You encountered a " + activeMonster.name + "!");
     }
 
     function updateMonsterDisplay(monster, defeated = false) {
@@ -744,17 +834,9 @@
         monster = initMonster(monster);
       }
       
-      // Get base monster for max HP comparison
-      const baseMonster = monster.name === finalBoss.name ? finalBoss : 
-        monsters.find(m => m.name === monster.name);
-      const maxHp = baseMonster ? baseMonster.hp : Math.max(1, monster.hp);
-      // Ensure hp is non-negative but don't modify if already 0 (prevents double-processing)
-      if (monster.hp > 0) {
-        monster.hp = Math.floor(monster.hp);
-      }
-      const hpPercent = (monster.hp / maxHp) * 100;
+      const hpPercent = (monster.currentHp / monster.maxHp) * 100;
       
-      if (defeated) {
+      if (defeated || monster.isDead) {
         // Add defeat flash animation
         monsterName.classList.add("defeated-flash");
         // Animate HP to 0 when defeated
@@ -769,33 +851,40 @@
         monsterHealthFill.style.width = hpPercent + "%";
       }
 
-      // Show status effects with detailed info
-      let status = `HP: ${monster.hp}/${maxHp}`;
+      // Show status effects with retro RPG styling
+      let hpColor = hpPercent > 50 ? "#50ff50" : hpPercent > 25 ? "#ffff50" : "#ff5050";
+      
+      let status = `HP: <span style="color: ${hpColor}; text-shadow: 0 0 5px ${hpColor};">${monster.currentHp}/${monster.maxHp}</span>`;
       const effects = [];
       
       if (monster.effects.poison > 0) {
-        effects.push(`🤢 Poisoned (${monster.effects.poison} turns)`);
+        effects.push(`<span class="status-effect">🤢 POISONED [${monster.effects.poison}]</span>`);
       }
       if (monster.effects.frozen > 0) {
-        effects.push(`❄️ Frozen (${monster.effects.frozen} turns)`);
+        effects.push(`<span class="status-effect">❄️ FROZEN [${monster.effects.frozen}]</span>`);
       }
       
       if (effects.length > 0) {
-        status += ` | ${effects.join(" | ")}`;
+        status += `\n<span class="combat-divider">════════════════</span>\n${effects.join("\n")}`;
       }
       
-      monsterStatus.innerText = status;
+      monsterStatus.innerHTML = status;
     }
 
     // Helper to safely create a new monster instance or reset a monster's state
-    function initMonster(monsterData) {
+    function initMonster(baseMonster) {
       // Deep clone the base stats
-      const monster = JSON.parse(JSON.stringify(monsterData));
-      // Initialize or reset combat state
-      monster.effects = monster.effects || {};
-      monster.defeated = false;
-      monster.hp = Math.max(0, Math.floor(monster.hp)); // Ensure valid HP
-      return monster;
+      const monster = JSON.parse(JSON.stringify(baseMonster));
+      return {
+        ...monster,
+        currentHp: monster.hp,  // Track current HP separately from max HP
+        maxHp: monster.hp,      // Store original max HP
+        effects: {
+          poison: 0,
+          freeze: 0
+        },
+        isDead: false              // Explicit death state tracking
+      };
     }
 
     // Helper to handle monster defeat and rewards
@@ -820,15 +909,9 @@
       document.getElementById("log").innerHTML = lootHtml;
     }
 
-    function handleMonsterDefeat(monster) {
-      updateMonsterDisplay(monster, true);
-      monster.defeated = true;
-      activeMonster = null; // Clear active reference
-      player.gold += monster.gold;
-      player.xp += monster.xp;
-      const msg = `You defeated the ${monster.name}!`;
-      updateQuestProgress(monster.name);
+    function checkAndProcessLevelUp() {
       checkLevelUp();
+      updateQuestProgress(activeMonster?.name);
       renderMenu([
         { label: "🎒 View Rewards", action: () => showLoot(monster) },
         { label: "🏠 Return to Town", action: goTown }
@@ -837,6 +920,16 @@
     }
 
     function showCombatMenu(monster, message) {
+      // If monster is dead or invalid, show post-combat options
+      if (!monster || monster.isDead || monster.currentHp <= 0) {
+        renderMenu([
+          { label: "🏠 Return to Town", action: goTown },
+          { label: "⚔️ Fight Again", action: fight }
+        ]);
+        renderLog(message, false);
+        return;
+      }
+      
       // Store active monster reference so menus use the live object rather than stale snapshots
       // If this is a new fight, initialize the monster
       if (!monster.effects) {
@@ -1052,7 +1145,7 @@
         return;
       }
 
-      monster.hp -= damage;
+      monster.currentHp -= damage;
       processMonsterDamage(monster, `${message}You used ${skill.name} dealing ${damage} damage!`);
     }
 
@@ -1080,7 +1173,8 @@
       const playerDmg = miss ? 0 : superCrit ? player.attack * 3 : crit ? player.attack * 2 : player.attack;
       let monsterDmg = monster.attack;
 
-      monster.hp -= playerDmg;
+      // Apply damage
+      monster.currentHp -= playerDmg;
       player.hp -= monsterDmg;
 
       // Build combat message with styled crit text
@@ -1098,14 +1192,13 @@
       let logMsg = `You ${hitMsg} the ${monster.name} for ${playerDmg} damage.\n`;
       logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
 
-      if (monster.hp <= 0 && !monster.defeated) {
-        // Process monster defeat and get reward message
-        logMsg += handleMonsterDefeat(monster);
-      } else if (player.hp <= 0) {
+      // Pass to processMonsterDamage to handle death and effects consistently
+      processMonsterDamage(monster, logMsg);
+
+      // Handle player death
+      if (player.hp <= 0) {
         logMsg += "You have been defeated...";
         renderMenu([{ label: "🔁 Retry", action: goTown }]);
-      } else {
-        showCombatMenu(monster, logMsg);
       }
 
       // Replace the log so any previous UI (like Back to Combat) is cleared
