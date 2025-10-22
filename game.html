@@ -615,15 +615,8 @@
       player.hp -= Math.floor(monsterDmg);
       logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
 
-      if (monster.hp <= 0) {
-        // mark monster as defeated to prevent resurrection via stale menu buttons
-        monster.defeated = true;
-        player.gold += monster.gold;
-        player.xp += monster.xp;
-        logMsg += `You defeated the ${monster.name}!\nGold +${monster.gold}, XP +${monster.xp}`;
-        updateQuestProgress(monster.name);
-        checkLevelUp();
-        renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
+      if (monster.hp <= 0 && !monster.defeated) {
+        logMsg += handleMonsterDefeat(monster);
       } else if (player.hp <= 0) {
         logMsg += "You have been defeated...";
         renderMenu([{ label: "🔁 Retry", action: goTown }]);
@@ -715,11 +708,20 @@
 
       monsterInfo.style.display = "block";
       monsterName.innerText = monster.name;
-      // Ensure hp is not negative and find base stats safely
-      monster.hp = Math.max(0, Math.floor(monster.hp));
+      
+      // Always initialize monster state if needed
+      if (!monster.effects) {
+        monster = initMonster(monster);
+      }
+      
+      // Get base monster for max HP comparison
       const baseMonster = monster.name === finalBoss.name ? finalBoss : 
         monsters.find(m => m.name === monster.name);
       const maxHp = baseMonster ? baseMonster.hp : Math.max(1, monster.hp);
+      // Ensure hp is non-negative but don't modify if already 0 (prevents double-processing)
+      if (monster.hp > 0) {
+        monster.hp = Math.floor(monster.hp);
+      }
       const hpPercent = (monster.hp / maxHp) * 100;
       
       if (defeated) {
@@ -742,8 +744,37 @@
       monsterStatus.innerText = status;
     }
 
+    // Helper to safely create a new monster instance or reset a monster's state
+    function initMonster(monsterData) {
+      // Deep clone the base stats
+      const monster = JSON.parse(JSON.stringify(monsterData));
+      // Initialize or reset combat state
+      monster.effects = monster.effects || {};
+      monster.defeated = false;
+      monster.hp = Math.max(0, Math.floor(monster.hp)); // Ensure valid HP
+      return monster;
+    }
+
+    // Helper to handle monster defeat and rewards
+    function handleMonsterDefeat(monster) {
+      updateMonsterDisplay(monster, true);
+      monster.defeated = true;
+      activeMonster = null; // Clear active reference
+      player.gold += monster.gold;
+      player.xp += monster.xp;
+      const msg = `You defeated the ${monster.name}!\nGold +${monster.gold}, XP +${monster.xp}`;
+      updateQuestProgress(monster.name);
+      checkLevelUp();
+      renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
+      return msg;
+    }
+
     function showCombatMenu(monster, message) {
       // Store active monster reference so menus use the live object rather than stale snapshots
+      // If this is a new fight, initialize the monster
+      if (!monster.effects) {
+        monster = initMonster(monster);
+      }
       activeMonster = monster;
       updateMonsterDisplay(monster);
       
@@ -956,7 +987,6 @@
 
       monster.hp -= damage;
       processMonsterDamage(monster, `${message}You used ${skill.name} dealing ${damage} damage!`);
-      if (monster.hp <= 0) activeMonster = null;
     }
 
     function attack(monster) {
@@ -1001,17 +1031,9 @@
       let logMsg = `You ${hitMsg} the ${monster.name} for ${playerDmg} damage.\n`;
       logMsg += `The ${monster.name} hits you for ${monsterDmg} damage.\n`;
 
-      if (monster.hp <= 0) {
-        // Show monster being defeated with HP animation
-        updateMonsterDisplay(monster, true);
-        // clear activeMonster so menus can't revive a dead enemy
-        activeMonster = null;
-        player.gold += monster.gold;
-        player.xp += monster.xp;
-        logMsg += `You defeated the ${monster.name}!\nGold +${monster.gold}, XP +${monster.xp}`;
-        updateQuestProgress(monster.name);
-        checkLevelUp();
-        renderMenu([{ label: "🏠 Return to Town", action: goTown }]);
+      if (monster.hp <= 0 && !monster.defeated) {
+        // Process monster defeat and get reward message
+        logMsg += handleMonsterDefeat(monster);
       } else if (player.hp <= 0) {
         logMsg += "You have been defeated...";
         renderMenu([{ label: "🔁 Retry", action: goTown }]);
