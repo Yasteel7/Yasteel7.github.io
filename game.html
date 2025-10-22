@@ -585,7 +585,8 @@
     function goTown() {
       // Clear any monster display when returning to town
       updateMonsterDisplay(null);
-      renderLog("Welcome to Town Square");
+      // Replace log content when changing location
+      renderLog("Welcome to Town Square", false);
       renderStats();
       renderMenu([
         { label: "⚔️ Fight", action: fight },
@@ -1307,7 +1308,11 @@
         player.skills.push(skillsList.rogue[0]); // Start with Backstab
       }
       
+      // Return to town UI but replace log with a single confirmation message showing the chosen class
       goTown();
+      const classNames = { warrior: 'Warrior', mage: 'Mage', rogue: 'Rogue' };
+      const chosenName = classNames[classId] || classId;
+      renderLog(`You are now a ${chosenName}.`, false);
     }
 
     // Initial load
