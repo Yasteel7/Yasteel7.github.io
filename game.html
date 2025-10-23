@@ -1003,6 +1003,9 @@
     }
 
     function showSpells(monster) {
+      if (!monster.effects) {
+        monster = initMonster(monster);
+      }
       const monsterState = encodeURIComponent(JSON.stringify(monster));
       let html = "<h3>✨ Spells</h3>";
       player.spells.forEach((spell, i) => {
@@ -1016,7 +1019,7 @@
             </button>
           </div>`;
       });
-      if (!monster.defeated && monster.hp > 0) {
+      if (!monster.isDead && monster.currentHp > 0) {
         html += `<br><button onclick='returnToCombat("${monsterState}")'>Back to Combat</button>`;
       } else {
         html += `<br><button onclick='goTown()'>Return to Town</button>`;
@@ -1049,7 +1052,7 @@
     function castSpell(index, monsterState) {
       // Get fresh monster state with proper initialization
       const baseMonster = activeMonster || JSON.parse(decodeURIComponent(monsterState));
-      const monster = refreshMonsterState(baseMonster);
+      const monster = (!baseMonster.effects) ? initMonster(baseMonster) : baseMonster;
       const spell = player.spells[index];
 
       // Check if we can cast
@@ -1079,19 +1082,29 @@
           }
           
           processMonsterDamage(monster, msg);
-          if (monster.hp <= 0) activeMonster = null;
+          
+          // Update activeMonster with new state and show combat menu
+          if (monster.currentHp <= 0 || monster.isDead) {
+            activeMonster = null;
+            showVictoryBanner(monster);
+          } else {
+            activeMonster = monster;
+            showCombatMenu(monster, msg);
+          }
         } else if (spell.healing) {
           const healing = Math.floor(spell.healing + Math.floor(player.magicPower / 2));
           player.hp = Math.min(player.maxHp, player.hp + healing);
           renderStats();
           showCombatMenu(monster, `You cast ${spell.name} healing ${healing} HP!`);
         }
+        renderStats();
       }
     }
 
     function returnToCombat(monsterState) {
-      const monster = activeMonster || JSON.parse(decodeURIComponent(monsterState));
-      if (!monster || monster.hp <= 0 || monster.defeated) {
+      const baseMonster = activeMonster || JSON.parse(decodeURIComponent(monsterState));
+      const monster = refreshMonsterState(baseMonster);
+      if (!monster || monster.currentHp <= 0 || monster.isDead) {
         renderLog("That enemy has already been defeated.", false);
         return;
       }
