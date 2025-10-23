@@ -1047,16 +1047,28 @@
     }
 
     function castSpell(index, monsterState) {
-      // Prefer the live activeMonster if present to avoid stale snapshots
-      const monster = activeMonster || JSON.parse(decodeURIComponent(monsterState));
+      // Get fresh monster state with proper initialization
+      const baseMonster = activeMonster || JSON.parse(decodeURIComponent(monsterState));
+      const monster = refreshMonsterState(baseMonster);
       const spell = player.spells[index];
+
+      // Check if we can cast
+      if (!monster || monster.isDead || monster.currentHp <= 0) {
+        showVictoryBanner(monster);
+        renderMenu([
+          { label: "🏠 Return to Town", action: goTown },
+          { label: "⚔️ Fight Again", action: fight }
+        ]);
+        return;
+      }
+
       if (player.mp >= spell.mpCost) {
         player.mp -= spell.mpCost;
         let damage = spell.damage || 0;
         if (damage > 0) {
           // Magic power adds flat damage to spells (predictable with equipment)
           damage = Math.floor(damage + player.magicPower);
-          monster.hp -= damage;
+          monster.currentHp -= damage;
           let msg = `You cast ${spell.name} dealing ${damage} magic damage!`;
           
           // Apply Frostbolt freeze effect
